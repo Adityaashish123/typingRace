@@ -553,9 +553,8 @@
   // Refocus typing input on click anywhere in race screen
   $('#race').addEventListener('click', (e) => {
     if (state.room && state.room.status === 'racing') {
-      if (!e.target.closest('button') && !e.target.closest('input')) {
-        input.focus();
-      }
+      if (e.target.closest('button, input, select, label')) return;
+      input.focus();
     }
   });
 
@@ -775,7 +774,9 @@
   }
 
   $('#practice').addEventListener('click', (e) => {
-    if (!e.target.closest('button') && !e.target.closest('input')) pInput.focus();
+    // Don't steal focus from interactive controls (dropdown <select>, buttons, inputs, labels).
+    if (e.target.closest('button, input, select, label, .seg')) return;
+    pInput.focus();
   });
 
   showScreen('home');
