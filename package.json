@@ -1,0 +1,20 @@
+{
+  "name": "typing-race",
+  "version": "1.0.0",
+  "description": "A real-time multiplayer typing race game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["typing", "game", "multiplayer", "socket.io"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "4.19.2",
+    "socket.io": "4.7.5"
+  }
+}
