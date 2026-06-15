@@ -703,6 +703,14 @@
     finishPracticeRun();
   });
 
+  // Enter key triggers Finish once the button is enabled.
+  pInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    if ($('#practiceFinishBtn').disabled) return;
+    e.preventDefault();
+    finishPracticeRun();
+  });
+
   $('#practiceBtn').addEventListener('click', () => {
     showScreen('practice');
     loadBests();
