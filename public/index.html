@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Typing Race 🏁</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E🏁%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- HOME / JOIN -->
+      <section id="home" class="screen active">
+        <div class="hero">
+          <h1>Typing Race <span class="flag">🏁</span></h1>
+          <p class="tagline">Race your friends. Type fast. Type clean. Sabotage when needed.</p>
+        </div>
+
+        <div class="card">
+          <label>
+            <span>Your name</span>
+            <input id="nameInput" maxlength="20" placeholder="Speedy McKeyboard" />
+          </label>
+
+          <div class="avatar-picker">
+            <span class="label">Pick your racer</span>
+            <div id="avatarGrid" class="avatar-grid"></div>
+          </div>
+
+          <div class="row">
+            <button id="createBtn" class="primary">Create Room</button>
+            <div class="divider">or</div>
+            <div class="join-row">
+              <input id="codeInput" maxlength="5" placeholder="ROOM CODE" class="code-input" />
+              <button id="joinBtn" class="secondary">Join</button>
+            </div>
+          </div>
+          <p id="homeError" class="error"></p>
+        </div>
+
+        <footer class="footer">
+          <span>Built for fun · Open source · Type responsibly</span>
+        </footer>
+      </section>
+
+      <!-- LOBBY -->
+      <section id="lobby" class="screen">
+        <header class="bar">
+          <div>
+            <span class="muted">Room</span>
+            <span id="roomCode" class="code-pill">—</span>
+            <button id="copyCodeBtn" class="ghost">Copy link</button>
+          </div>
+          <div id="hostControls" class="hidden">
+            <label class="diff-label">
+              Difficulty
+              <select id="difficultySelect">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+                <option value="code">Code</option>
+              </select>
+            </label>
+            <button id="startNowBtn" class="primary">Start Now</button>
+          </div>
+        </header>
+
+        <div class="lobby-body">
+          <h2>Lobby</h2>
+          <p class="muted" id="lobbyHint">Waiting for players. Mark yourself ready when you’re set.</p>
+          <ul id="playerList" class="player-list"></ul>
+          <div class="lobby-actions">
+            <button id="readyBtn" class="primary">I’m Ready</button>
+            <button id="leaveLobbyBtn" class="ghost">Leave</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RACE -->
+      <section id="race" class="screen">
+        <header class="bar">
+          <div>
+            <span class="muted">Room</span>
+            <span id="raceRoomCode" class="code-pill">—</span>
+          </div>
+          <div class="race-stats">
+            <span class="stat"><span class="stat-label">WPM</span><span id="wpmStat">0</span></span>
+            <span class="stat"><span class="stat-label">ACC</span><span id="accStat">100%</span></span>
+            <span class="stat"><span class="stat-label">TIME</span><span id="timeStat">0.0s</span></span>
+          </div>
+        </header>
+
+        <div id="track" class="track"></div>
+
+        <div id="countdown" class="countdown hidden">
+          <div class="count-num">3</div>
+          <div class="count-label">Get ready</div>
+        </div>
+
+        <div class="race-area">
+          <div id="textBox" class="text-box" tabindex="0"></div>
+          <input id="typingInput" class="typing-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Click here, then type to race…" />
+          <div class="powerup-bar">
+            <div id="powerUps" class="powerups"></div>
+            <div id="emojiBar" class="emoji-bar">
+              <button data-emoji="🔥">🔥</button>
+              <button data-emoji="😂">😂</button>
+              <button data-emoji="😱">😱</button>
+              <button data-emoji="🐢">🐢</button>
+              <button data-emoji="⚡">⚡</button>
+              <button data-emoji="👏">👏</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="effectOverlay" class="effect-overlay"></div>
+        <div id="emojiPop" class="emoji-pop"></div>
+        <div id="toasts" class="toasts"></div>
+      </section>
+
+      <!-- RESULTS -->
+      <section id="results" class="screen">
+        <h2>🏆 Results</h2>
+        <ol id="resultsList" class="results-list"></ol>
+        <div class="results-actions">
+          <button id="rematchBtn" class="primary hidden">Rematch</button>
+          <button id="leaveResultsBtn" class="ghost">Back to Home</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
