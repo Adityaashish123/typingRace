@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: typing-race
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_ENV
+        value: production
+    # Sticky sessions (required for Socket.IO when scaling beyond 1 instance).
+    # Free plan is single-instance so this is fine to leave default.
