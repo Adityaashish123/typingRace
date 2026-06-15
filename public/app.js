@@ -57,6 +57,40 @@
   });
   renderAvatars();
 
+  // ====== Themes ======
+  let themesCache = null;
+  async function loadThemesIntoSelects() {
+    if (themesCache) {
+      populateThemeSelects(themesCache);
+      return;
+    }
+    try {
+      const res = await fetch('/api/themes');
+      const data = await res.json();
+      themesCache = data.themes || [];
+      populateThemeSelects(themesCache);
+    } catch {
+      // fallback: keep just "random"
+    }
+  }
+  function populateThemeSelects(list) {
+    const selects = [$('#themeSelect'), $('#practiceThemeSelect')];
+    selects.forEach((sel) => {
+      if (!sel) return;
+      const current = sel.value || 'random';
+      // Keep the existing first option (Random); rebuild after it
+      sel.innerHTML = '<option value="random">Random</option>';
+      list.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t.key;
+        opt.textContent = t.label;
+        sel.appendChild(opt);
+      });
+      sel.value = current;
+    });
+  }
+  loadThemesIntoSelects();
+
   // Auto-fill room code from URL hash
   const hashCode = (location.hash || '').replace('#', '').toUpperCase();
   if (hashCode) $('#codeInput').value = hashCode;
@@ -94,6 +128,10 @@
 
   $('#difficultySelect').addEventListener('change', (e) => {
     socket.emit('room:setDifficulty', { difficulty: e.target.value });
+  });
+
+  $('#themeSelect').addEventListener('change', (e) => {
+    socket.emit('room:setTheme', { theme: e.target.value });
   });
 
   let isReady = false;
@@ -399,6 +437,7 @@
     if (room.hostId === state.me && room.status === 'lobby') {
       $('#hostControls').classList.remove('hidden');
       $('#difficultySelect').value = room.difficulty;
+      if ($('#themeSelect') && room.theme) $('#themeSelect').value = room.theme;
     } else {
       $('#hostControls').classList.add('hidden');
     }
@@ -559,9 +598,11 @@
     $('#practiceDiffPill').textContent = practice.difficulty.toUpperCase();
     $$('#practiceDiffSeg button').forEach((b) => b.classList.toggle('active', b.dataset.diff === practice.difficulty));
 
+    const theme = ($('#practiceThemeSelect') && $('#practiceThemeSelect').value) || 'random';
+
     let text;
     try {
-      const res = await fetch('/api/practice-text?difficulty=' + practice.difficulty);
+      const res = await fetch('/api/practice-text?difficulty=' + practice.difficulty + '&theme=' + encodeURIComponent(theme));
       const data = await res.json();
       text = data.text;
     } catch {
@@ -726,6 +767,12 @@
     if (!btn) return;
     startPracticeRun(btn.dataset.diff);
   });
+
+  // Changing the theme in practice should pull a new text immediately.
+  const _practiceThemeSel = $('#practiceThemeSelect');
+  if (_practiceThemeSel) {
+    _practiceThemeSel.addEventListener('change', () => startPracticeRun(practice.difficulty));
+  }
 
   $('#practice').addEventListener('click', (e) => {
     if (!e.target.closest('button') && !e.target.closest('input')) pInput.focus();

@@ -15,7 +15,15 @@ app.get('/api/practice-text', (req, res) => {
   const difficulty = ['easy', 'medium', 'hard'].includes(req.query.difficulty)
     ? req.query.difficulty
     : 'medium';
-  res.json({ difficulty, text: getRandomText(difficulty) });
+  const theme = typeof req.query.theme === 'string' ? req.query.theme : 'random';
+  res.json({ difficulty, theme, text: getRandomText(difficulty, theme) });
+});
+
+// Expose available themes so the client never has to hard-code labels.
+app.get('/api/themes', (req, res) => {
+  const { THEMES } = require('./texts');
+  const list = Object.keys(THEMES).map((key) => ({ key, label: THEMES[key].label }));
+  res.json({ themes: list });
 });
 
 // In-memory room store. For a real product, swap with Redis.
@@ -41,6 +49,7 @@ function publicRoomState(room) {
     status: room.status, // 'lobby' | 'countdown' | 'racing' | 'finished'
     text: room.status === 'lobby' ? null : room.text,
     difficulty: room.difficulty,
+    theme: room.theme,
     startsAt: room.startsAt,
     endsAt: room.endsAt,
     players: Array.from(room.players.values()).map((p) => ({
@@ -70,7 +79,7 @@ function startCountdown(code) {
   const room = rooms.get(code);
   if (!room) return;
   room.status = 'countdown';
-  room.text = getRandomText(room.difficulty);
+  room.text = getRandomText(room.difficulty, room.theme);
   room.startsAt = Date.now() + COUNTDOWN_SECONDS * 1000;
   room.endsAt = null;
   for (const p of room.players.values()) {
@@ -146,6 +155,7 @@ io.on('connection', (socket) => {
       players: new Map(),
       text: null,
       difficulty: difficulty || 'medium',
+      theme: 'random',
       startsAt: null,
       endsAt: null,
       startedAt: null,
@@ -193,8 +203,18 @@ io.on('connection', (socket) => {
     if (!currentRoomCode) return;
     const room = rooms.get(currentRoomCode);
     if (!room || room.hostId !== socket.id) return;
-    if (!['easy', 'medium', 'hard', 'code'].includes(difficulty)) return;
+    if (!['easy', 'medium', 'hard'].includes(difficulty)) return;
     room.difficulty = difficulty;
+    broadcastRoom(currentRoomCode);
+  });
+
+  socket.on('room:setTheme', ({ theme }) => {
+    if (!currentRoomCode) return;
+    const room = rooms.get(currentRoomCode);
+    if (!room || room.hostId !== socket.id) return;
+    const { THEMES } = require('./texts');
+    if (theme !== 'random' && !THEMES[theme]) return;
+    room.theme = theme;
     broadcastRoom(currentRoomCode);
   });
 
