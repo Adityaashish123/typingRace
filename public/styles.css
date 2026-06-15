@@ -448,6 +448,16 @@ button.full { width: 100%; }
 
 .practice-stats { justify-content: flex-start; gap: 22px; margin-bottom: 12px; }
 
+.practice-finish-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.practice-finish-row button { padding: 8px 18px; font-size: 14px; }
+.practice-finish-row .muted { font-size: 12px; }
+
 .practice-result {
   position: fixed; inset: 0;
   background: rgba(11, 15, 26, 0.7);

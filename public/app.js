@@ -582,6 +582,8 @@
     $('#pTime').textContent = '0.0s';
     $('#pProg').textContent = '0%';
     $('#practiceResult').classList.add('hidden');
+    $('#practiceFinishBtn').disabled = true;
+    $('#practiceFinishHint').textContent = 'Type the full sentence (errors okay) to enable Finish.';
     setTimeout(() => pInput.focus(), 30);
   }
 
@@ -639,6 +641,13 @@
     renderPracticeText(pInput.value);
     updatePracticeStats();
 
+    // Enable the Finish button once they've typed the full length, errors or not.
+    const reachedEnd = pInput.value.length >= text.length;
+    $('#practiceFinishBtn').disabled = !reachedEnd;
+    $('#practiceFinishHint').textContent = reachedEnd
+      ? 'Click Finish to lock in your time and WPM.'
+      : 'Type the full sentence (errors okay) to enable Finish.';
+
     if (correct === text.length && pInput.value.length === text.length) {
       finishPracticeRun();
     }
@@ -687,6 +696,12 @@
     $('#prErr').textContent = practice.errors;
     $('#practiceResult').classList.remove('hidden');
   }
+
+  $('#practiceFinishBtn').addEventListener('click', () => {
+    if (!practice.started || practice.finished) return;
+    if (pInput.value.length < practice.text.length) return;
+    finishPracticeRun();
+  });
 
   $('#practiceBtn').addEventListener('click', () => {
     showScreen('practice');
