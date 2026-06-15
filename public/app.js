@@ -348,6 +348,12 @@
     if (prevStatus !== room.status) {
       if (room.status === 'lobby') {
         showScreen('lobby');
+        // Returning to lobby (e.g. rematch): server cleared ready flags,
+        // so reset our local ready toggle and the button to match.
+        isReady = false;
+        $('#readyBtn').textContent = "I’m Ready";
+        $('#readyBtn').classList.add('primary');
+        $('#readyBtn').classList.remove('secondary');
       } else if (room.status === 'countdown') {
         showScreen('race');
         startTypingFor(room.text);
