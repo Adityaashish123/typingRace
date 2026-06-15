@@ -36,11 +36,80 @@
             </div>
           </div>
           <p id="homeError" class="error"></p>
+
+          <div class="practice-cta">
+            <button id="practiceBtn" class="ghost full">🎯 Practice Solo (test your WPM)</button>
+          </div>
         </div>
 
         <footer class="footer">
           <span>Built for fun · Open source · Type responsibly</span>
         </footer>
+      </section>
+
+      <!-- PRACTICE -->
+      <section id="practice" class="screen">
+        <header class="bar">
+          <div>
+            <span class="muted">Practice</span>
+            <span class="code-pill" id="practiceDiffPill">MEDIUM</span>
+          </div>
+          <div class="practice-controls">
+            <div class="seg" id="practiceDiffSeg">
+              <button data-diff="easy">Easy</button>
+              <button data-diff="medium" class="active">Medium</button>
+              <button data-diff="hard">Hard</button>
+            </div>
+            <button id="practiceNewBtn" class="ghost">New Text</button>
+            <button id="practiceLeaveBtn" class="ghost">Back</button>
+          </div>
+        </header>
+
+        <div class="best-row">
+          <div class="best-card" data-diff="easy">
+            <div class="best-label">Easy · Best</div>
+            <div class="best-val"><span id="bestEasy">—</span><span class="best-unit"> WPM</span></div>
+            <div class="best-meta" id="bestEasyMeta">No runs yet</div>
+          </div>
+          <div class="best-card" data-diff="medium">
+            <div class="best-label">Medium · Best</div>
+            <div class="best-val"><span id="bestMedium">—</span><span class="best-unit"> WPM</span></div>
+            <div class="best-meta" id="bestMediumMeta">No runs yet</div>
+          </div>
+          <div class="best-card" data-diff="hard">
+            <div class="best-label">Hard · Best</div>
+            <div class="best-val"><span id="bestHard">—</span><span class="best-unit"> WPM</span></div>
+            <div class="best-meta" id="bestHardMeta">No runs yet</div>
+          </div>
+        </div>
+
+        <div class="race-stats practice-stats">
+          <span class="stat"><span class="stat-label">WPM</span><span id="pWpm">0</span></span>
+          <span class="stat"><span class="stat-label">ACC</span><span id="pAcc">100%</span></span>
+          <span class="stat"><span class="stat-label">TIME</span><span id="pTime">0.0s</span></span>
+          <span class="stat"><span class="stat-label">PROGRESS</span><span id="pProg">0%</span></span>
+        </div>
+
+        <div class="race-area">
+          <div id="practiceTextBox" class="text-box" tabindex="0"></div>
+          <input id="practiceInput" class="typing-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Click here, then type to start the timer…" />
+        </div>
+
+        <div id="practiceResult" class="practice-result hidden">
+          <div class="practice-result-card">
+            <h3 id="practiceResultTitle">Run Complete</h3>
+            <div class="practice-result-grid">
+              <div><div class="muted">WPM</div><strong id="prWpm">0</strong></div>
+              <div><div class="muted">Accuracy</div><strong id="prAcc">0%</strong></div>
+              <div><div class="muted">Time</div><strong id="prTime">0.0s</strong></div>
+              <div><div class="muted">Errors</div><strong id="prErr">0</strong></div>
+            </div>
+            <div class="practice-result-actions">
+              <button id="practiceAgainBtn" class="primary">Run Again</button>
+              <button id="practiceCloseResult" class="ghost">Close</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- LOBBY -->

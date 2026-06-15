@@ -141,6 +141,9 @@
       span.textContent = text[i] === ' ' ? '\u00A0' : text[i];
       if (i < typed.length) {
         span.classList.add(typed[i] === text[i] ? 'correct' : 'wrong');
+        if (typed[i] !== text[i]) {
+          // Show what was expected (keep original char visible) - already shown above
+        }
       } else if (i === typed.length) {
         span.classList.add('cursor');
       }
@@ -157,6 +160,7 @@
     return { wpm, accuracy };
   }
 
+  let lastEmit = 0;
   function emitProgress() {
     const ts = state.typingState;
     if (!ts || !state.room || state.room.status !== 'racing') return;
@@ -174,10 +178,12 @@
   input.addEventListener('input', (e) => {
     const ts = state.typingState;
     if (!ts || ts.finished || !state.room || state.room.status !== 'racing') {
+      // disallow typing outside race
       input.value = '';
       return;
     }
     if (ts.locked) {
+      // reverse effect: prevent forward progress until unlock
       e.preventDefault?.();
       return;
     }
@@ -189,15 +195,20 @@
     const value = input.value;
     const text = ts.text;
 
+    // Recount correct chars and total typed
     let correct = 0;
     for (let i = 0; i < Math.min(value.length, text.length); i++) {
       if (value[i] === text[i]) correct++;
     }
+    // Total keys: track the max length the user has reached + corrections
+    // Simpler: every input event increments totalKeys by absolute diff
     if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') {
+      // consider every input as one key press
       ts.totalKeys += 1;
     }
     ts.correctChars = correct;
 
+    // Cap input at text length to prevent overshoot
     if (value.length > text.length) {
       input.value = value.slice(0, text.length);
     }
@@ -225,8 +236,10 @@
   $('#powerUps').addEventListener('click', (e) => {
     const btn = e.target.closest('.powerup');
     if (!btn) return;
+    // Show target picker by toasting list of player ids; simpler: prompt
     const choices = (state.room?.players || []).filter((p) => p.id !== state.me && !p.finished);
     if (choices.length === 0) return toast('No targets available');
+    // Quick picker: if only one target, fire it; else show floating list.
     if (choices.length === 1) {
       socket.emit('race:usePowerUp', { targetId: choices[0].id });
       return;
@@ -290,6 +303,7 @@
 
   socket.on('race:powerUpUsed', ({ from, to, type }) => {
     if (state.room && state.me && to !== state.me) {
+      // Don't show toast to the target (they get a bigger one above)
       const p = (state.room.players || []).find((x) => x.id === state.me);
       if (p && p.name === to) return;
     }
@@ -330,6 +344,7 @@
     state.room = room;
     renderRoom(room);
 
+    // Status transitions
     if (prevStatus !== room.status) {
       if (room.status === 'lobby') {
         showScreen('lobby');
@@ -343,10 +358,13 @@
         if (!state.typingState || state.typingState.text !== room.text) {
           startTypingFor(room.text);
         }
+        // Ensure focus
         setTimeout(() => input.focus(), 50);
       } else if (room.status === 'finished') {
         showResults(room);
       }
+    } else if (room.status === 'racing') {
+      // keep input focused if user clicks elsewhere
     }
   });
 
@@ -367,9 +385,11 @@
 
   function renderRoom(room) {
     if (!room) return;
+    // lobby pieces
     $('#roomCode').textContent = room.code;
     $('#raceRoomCode').textContent = room.code;
 
+    // host controls visibility
     if (room.hostId === state.me && room.status === 'lobby') {
       $('#hostControls').classList.remove('hidden');
       $('#difficultySelect').value = room.difficulty;
@@ -377,6 +397,7 @@
       $('#hostControls').classList.add('hidden');
     }
 
+    // player list (lobby)
     const list = $('#playerList');
     list.innerHTML = '';
     room.players.forEach((p) => {
@@ -390,12 +411,16 @@
       list.appendChild(li);
     });
 
+    // race track
     renderTrack(room);
 
+    // power ups for me
     const me = room.players.find((p) => p.id === state.me);
     const pu = $('#powerUps');
     pu.innerHTML = '';
     if (me && room.status === 'racing' && me.powerUps > 0) {
+      // We don't know the type list per-power-up here (server sends count only).
+      // Show "use" button(s) — server pops type from the queue.
       for (let i = 0; i < me.powerUps; i++) {
         const b = document.createElement('button');
         b.className = 'powerup';
@@ -423,6 +448,7 @@
         ${escapeHtml(p.avatar)}
       `;
       const pct = Math.max(0, Math.min(1, p.progress));
+      // Place across the lane, leaving padding for finish stripe
       racer.style.left = (4 + pct * 92) + '%';
       lane.appendChild(racer);
       track.appendChild(lane);
@@ -479,12 +505,201 @@
       .replace(/'/g, '&#39;');
   }
 
+  // Refocus typing input on click anywhere in race screen
   $('#race').addEventListener('click', (e) => {
     if (state.room && state.room.status === 'racing') {
       if (!e.target.closest('button') && !e.target.closest('input')) {
         input.focus();
       }
     }
+  });
+
+  // ====== Practice Mode (solo, no server room required) ======
+  const practice = {
+    text: '',
+    difficulty: 'medium',
+    started: false,
+    startTime: 0,
+    correctChars: 0,
+    totalKeys: 0,
+    errors: 0,
+    finished: false,
+    timer: null,
+  };
+
+  const pTextBox = $('#practiceTextBox');
+  const pInput = $('#practiceInput');
+
+  function loadBests() {
+    ['easy', 'medium', 'hard'].forEach((d) => {
+      const raw = localStorage.getItem('tr.best.' + d);
+      if (!raw) return;
+      try {
+        const best = JSON.parse(raw);
+        const wpmEl = $('#best' + cap(d));
+        const metaEl = $('#best' + cap(d) + 'Meta');
+        if (wpmEl) wpmEl.textContent = best.wpm;
+        if (metaEl) {
+          const when = best.at ? new Date(best.at).toLocaleDateString() : '';
+          metaEl.textContent = `${best.accuracy}% acc · ${(best.timeMs / 1000).toFixed(1)}s${when ? ' · ' + when : ''}`;
+        }
+      } catch {}
+    });
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  async function startPracticeRun(difficulty) {
+    practice.difficulty = difficulty || practice.difficulty;
+    $('#practiceDiffPill').textContent = practice.difficulty.toUpperCase();
+    $$('#practiceDiffSeg button').forEach((b) => b.classList.toggle('active', b.dataset.diff === practice.difficulty));
+
+    let text;
+    try {
+      const res = await fetch('/api/practice-text?difficulty=' + practice.difficulty);
+      const data = await res.json();
+      text = data.text;
+    } catch {
+      text = 'The quick brown fox jumps over the lazy dog. Practice mode could not reach the server, so here is a fallback line for you to type.';
+    }
+    practice.text = text;
+    practice.started = false;
+    practice.startTime = 0;
+    practice.correctChars = 0;
+    practice.totalKeys = 0;
+    practice.errors = 0;
+    practice.finished = false;
+    pInput.value = '';
+    pInput.disabled = false;
+    renderPracticeText('');
+    $('#pWpm').textContent = '0';
+    $('#pAcc').textContent = '100%';
+    $('#pTime').textContent = '0.0s';
+    $('#pProg').textContent = '0%';
+    $('#practiceResult').classList.add('hidden');
+    setTimeout(() => pInput.focus(), 30);
+  }
+
+  function renderPracticeText(typed) {
+    const text = practice.text;
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < text.length; i++) {
+      const span = document.createElement('span');
+      span.className = 'ch';
+      span.textContent = text[i] === ' ' ? '\u00A0' : text[i];
+      if (i < typed.length) {
+        span.classList.add(typed[i] === text[i] ? 'correct' : 'wrong');
+      } else if (i === typed.length) {
+        span.classList.add('cursor');
+      }
+      frag.appendChild(span);
+    }
+    pTextBox.innerHTML = '';
+    pTextBox.appendChild(frag);
+  }
+
+  pInput.addEventListener('input', (e) => {
+    if (practice.finished) return;
+    if (!practice.started) {
+      practice.started = true;
+      practice.startTime = performance.now();
+      if (practice.timer) clearInterval(practice.timer);
+      practice.timer = setInterval(updatePracticeStats, 200);
+    }
+
+    const value = pInput.value;
+    const text = practice.text;
+    if (value.length > text.length) {
+      pInput.value = value.slice(0, text.length);
+    }
+    let correct = 0;
+    let firstWrongAt = -1;
+    for (let i = 0; i < Math.min(pInput.value.length, text.length); i++) {
+      if (pInput.value[i] === text[i]) correct++;
+      else if (firstWrongAt === -1) firstWrongAt = i;
+    }
+    practice.correctChars = correct;
+    if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') {
+      practice.totalKeys += 1;
+      if (firstWrongAt !== -1 && pInput.value.length > firstWrongAt && pInput.value[firstWrongAt] !== text[firstWrongAt]) {
+        // count an error per wrong char only when newly produced
+        if (e.inputType && e.inputType.startsWith('insert')) {
+          const lastIdx = pInput.value.length - 1;
+          if (lastIdx >= 0 && lastIdx < text.length && pInput.value[lastIdx] !== text[lastIdx]) {
+            practice.errors += 1;
+          }
+        }
+      }
+    }
+    renderPracticeText(pInput.value);
+    updatePracticeStats();
+
+    if (correct === text.length && pInput.value.length === text.length) {
+      finishPracticeRun();
+    }
+  });
+
+  function updatePracticeStats() {
+    if (!practice.text) return;
+    const elapsed = practice.started ? (performance.now() - practice.startTime) / 1000 : 0;
+    const minutes = Math.max(elapsed / 60, 1 / 60);
+    const wpm = practice.started ? Math.round((practice.correctChars / 5) / minutes) : 0;
+    const accuracy = practice.totalKeys > 0 ? Math.round((practice.correctChars / practice.totalKeys) * 100) : 100;
+    const progress = Math.round((practice.correctChars / practice.text.length) * 100);
+    $('#pWpm').textContent = wpm;
+    $('#pAcc').textContent = accuracy + '%';
+    $('#pTime').textContent = elapsed.toFixed(1) + 's';
+    $('#pProg').textContent = progress + '%';
+  }
+
+  function finishPracticeRun() {
+    practice.finished = true;
+    if (practice.timer) { clearInterval(practice.timer); practice.timer = null; }
+    pInput.disabled = true;
+
+    const elapsedMs = performance.now() - practice.startTime;
+    const minutes = Math.max(elapsedMs / 1000 / 60, 1 / 60);
+    const wpm = Math.round((practice.correctChars / 5) / minutes);
+    const accuracy = practice.totalKeys > 0 ? Math.round((practice.correctChars / practice.totalKeys) * 100) : 100;
+
+    // Compare with stored best
+    const key = 'tr.best.' + practice.difficulty;
+    let best = null;
+    try { best = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+    const isNewBest = !best || wpm > best.wpm;
+    if (isNewBest) {
+      const record = { wpm, accuracy, timeMs: Math.round(elapsedMs), at: Date.now() };
+      localStorage.setItem(key, JSON.stringify(record));
+      loadBests();
+    }
+
+    $('#prWpm').textContent = wpm + (isNewBest ? '' : '');
+    $('#practiceResultTitle').innerHTML = isNewBest
+      ? `Run Complete <span class="new-best">NEW BEST</span>`
+      : 'Run Complete';
+    $('#prAcc').textContent = accuracy + '%';
+    $('#prTime').textContent = (elapsedMs / 1000).toFixed(1) + 's';
+    $('#prErr').textContent = practice.errors;
+    $('#practiceResult').classList.remove('hidden');
+  }
+
+  $('#practiceBtn').addEventListener('click', () => {
+    showScreen('practice');
+    loadBests();
+    startPracticeRun('medium');
+  });
+  $('#practiceLeaveBtn').addEventListener('click', () => showScreen('home'));
+  $('#practiceNewBtn').addEventListener('click', () => startPracticeRun(practice.difficulty));
+  $('#practiceAgainBtn').addEventListener('click', () => startPracticeRun(practice.difficulty));
+  $('#practiceCloseResult').addEventListener('click', () => $('#practiceResult').classList.add('hidden'));
+
+  $('#practiceDiffSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-diff]');
+    if (!btn) return;
+    startPracticeRun(btn.dataset.diff);
+  });
+
+  $('#practice').addEventListener('click', (e) => {
+    if (!e.target.closest('button') && !e.target.closest('input')) pInput.focus();
   });
 
   showScreen('home');

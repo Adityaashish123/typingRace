@@ -10,6 +10,14 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Expose a random text for solo practice mode (no socket required).
+app.get('/api/practice-text', (req, res) => {
+  const difficulty = ['easy', 'medium', 'hard'].includes(req.query.difficulty)
+    ? req.query.difficulty
+    : 'medium';
+  res.json({ difficulty, text: getRandomText(difficulty) });
+});
+
 // In-memory room store. For a real product, swap with Redis.
 const rooms = new Map();
 
@@ -309,4 +317,6 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 server.listen(PORT, HOST, () => {
   console.log(`🏁 Typing Race running at http://localhost:${PORT}`);
+  console.log(`   LAN: any device on your Wi-Fi can reach http://<your-lan-ip>:${PORT}`);
+  console.log(`   Internet: run "npm run tunnel" to get a public URL to share.`);
 });
