@@ -815,17 +815,29 @@
   const dBulletsLayer = $('#defenderBullets');
   const dInput = $('#defenderInput');
 
-  // A small word pool for the arcade mode. Short, common English words
-  // so the gameplay stays brisk; difficulty scales by length and speed.
+  // A larger word pool for the arcade mode. Short, common words to keep
+  // the gameplay brisk; longer words dialed in as level grows.
   const DEFENDER_WORDS_SHORT = [
     'jump','code','rocket','space','star','warp','laser','beam','shield','dodge',
     'fast','plasma','quark','orbit','nova','pulse','meteor','comet','alien','ray',
-    'echo','glow','flux','core','beam','beep','boop','quick','snap','bolt',
-    'flame','spark','frost','blaze','swift','byte','bit','data','flow','grid',
-    'node','pixel','chip','disk','file','heap','loop','mesh','ping','queue',
-    'sync','tape','task','wire','zone','aero','azur','blue','calm','duck',
-    'edge','foam','game','hint','iron','jolt','keen','lake','milk','navy',
-    'open','park','rain','sail','tide','urge','vine','warm','xray','yarn',
+    'echo','glow','flux','core','beep','boop','quick','snap','bolt','flame',
+    'spark','frost','blaze','swift','byte','bit','data','flow','grid','node',
+    'pixel','chip','disk','file','heap','loop','mesh','ping','queue','sync',
+    'tape','task','wire','zone','aero','azur','blue','calm','duck','edge',
+    'foam','game','hint','iron','jolt','keen','lake','milk','navy','open',
+    'park','rain','sail','tide','urge','vine','warm','xray','yarn','wind',
+    'cloud','river','tree','sand','rock','snow','leaf','moon','nest','stone',
+    'fire','ice','wave','peak','shore','gulf','reef','cave','dune','field',
+    'ash','arc','bay','brisk','cog','dawn','dim','dusk','elf','fern',
+    'flint','frog','gem','glide','grit','haze','hawk','hum','ink','jade',
+    'kelp','lark','loft','moss','mist','myth','nap','oak','onyx','owl',
+    'plum','pond','pyre','ridge','rim','rune','sage','sash','silk','silo',
+    'sled','smog','sob','soot','step','swan','swap','swap','tan','tilt',
+    'tomb','torch','vat','vex','vow','wand','wax','web','wisp','yawn',
+    'zinc','zoo','dusk','duo','foe','fox','gum','hue','isle','jay',
+    'kite','lump','marsh','melt','nudge','ode','pith','quay','quartz','rust',
+    'salt','sane','tang','toll','urn','urge','veer','vista','wail','willow',
+    'yak','yelp','zest','zeal','zip','plume','prism','clamp','crisp','dwell',
   ];
   const DEFENDER_WORDS_LONG = [
     'asteroid','cosmonaut','telescope','satellite','algorithm','keyboard',
@@ -833,13 +845,52 @@
     'gravitas','starship','meteorite','quasar','nebula','radiation',
     'commander','quantum','encrypt','protocol','interface','momentum',
     'parallax','firmware','snapshot','redshift','blueshift','escape',
+    'horizon','solstice','equinox','antenna','aperture','particle',
+    'simulate','transmit','receive','calibrate','modulate','frequency',
+    'gravitate','luminous','meridian','observe','overdrive','penumbra',
+    'planetoid','propeller','radiance','reactor','recursive','resonate',
+    'scanner','spectrum','stabilize','starlight','supernova','synthwave',
+    'thruster','transmit','traverse','turbulence','umbra','velocity',
+    'vortex','warpdrive','wavelength','xenobiology','yieldpoint','zenith',
+    'crystal','dimension','enigma','fragment','galactic','harness',
+    'incandescent','journey','keystone','lighthouse','mainframe','navigate',
+    'omnibus','phantom','quasimoon','rendezvous','singularity','telemetry',
+    'ultraviolet','vacuum','weightless','eclipse','dynamo','flotilla',
+    'cybernetic','deepspace','deflector','exoplanet','fusion','hologram',
   ];
+
+  // Buffer of recently spawned words to reduce back-to-back repeats.
+  const recentDefenderWords = [];
+  const RECENT_BUFFER_MAX = 12;
 
   function pickWord(level) {
     // Higher level -> more chance of long words.
     const longChance = Math.min(0.7, 0.1 + level * 0.07);
+    const onScreen = new Set(defender.words.map((w) => w.word));
+    const recent = new Set(recentDefenderWords);
+
+    // Try up to 12 picks to find one that isn't on screen or recently used.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const list = Math.random() < longChance ? DEFENDER_WORDS_LONG : DEFENDER_WORDS_SHORT;
+      const candidate = list[Math.floor(Math.random() * list.length)];
+      if (onScreen.has(candidate)) continue; // never duplicate live targets
+      if (recent.has(candidate)) continue;   // avoid recent
+      rememberDefenderWord(candidate);
+      return candidate;
+    }
+
+    // Fallback: pick anything not currently on screen.
     const list = Math.random() < longChance ? DEFENDER_WORDS_LONG : DEFENDER_WORDS_SHORT;
-    return list[Math.floor(Math.random() * list.length)];
+    const fallback = list.find((w) => !onScreen.has(w)) || list[Math.floor(Math.random() * list.length)];
+    rememberDefenderWord(fallback);
+    return fallback;
+  }
+
+  function rememberDefenderWord(word) {
+    recentDefenderWords.push(word);
+    while (recentDefenderWords.length > RECENT_BUFFER_MAX) {
+      recentDefenderWords.shift();
+    }
   }
 
   function levelFromScore(score) {
@@ -881,6 +932,7 @@
     defender.spawnIntervalMs = spawnIntervalForLevel(1);
     defender.lastSpawnAt = performance.now();
     defender.lastFrameAt = performance.now();
+    recentDefenderWords.length = 0;
     updateDefenderHUD();
     dInput.value = '';
     dInput.disabled = false;
