@@ -760,6 +760,10 @@
   $('#practiceNewBtn').addEventListener('click', () => startPracticeRun(practice.difficulty));
   $('#practiceAgainBtn').addEventListener('click', () => startPracticeRun(practice.difficulty));
   $('#practiceCloseResult').addEventListener('click', () => $('#practiceResult').classList.add('hidden'));
+  $('#practiceResultHomeBtn').addEventListener('click', () => {
+    $('#practiceResult').classList.add('hidden');
+    showScreen('home');
+  });
 
   $('#practiceDiffSeg').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-diff]');
@@ -1138,6 +1142,21 @@
   $('#defenderLeaveBtn').addEventListener('click', () => {
     stopDefender();
     showScreen('home');
+  });
+  $('#defenderHomeBtn').addEventListener('click', () => {
+    stopDefender();
+    showScreen('home');
+  });
+
+  // Esc from Practice or Defender returns to Home (lightweight nav for arcade flow).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const active = document.querySelector('.screen.active');
+    if (!active) return;
+    if (active.id === 'practice' || active.id === 'defender') {
+      stopDefender();
+      showScreen('home');
+    }
   });
 
   $('#defender').addEventListener('click', (e) => {

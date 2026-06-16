@@ -68,7 +68,7 @@
               </select>
             </label>
             <button id="practiceNewBtn" class="ghost">New Text</button>
-            <button id="practiceLeaveBtn" class="ghost">Back</button>
+            <button id="practiceLeaveBtn" class="ghost">Home</button>
           </div>
         </header>
 
@@ -118,6 +118,7 @@
             <div class="practice-result-actions">
               <button id="practiceAgainBtn" class="primary">Run Again</button>
               <button id="practiceCloseResult" class="ghost">Close</button>
+              <button id="practiceResultHomeBtn" class="ghost">Home</button>
             </div>
           </div>
         </div>
@@ -215,7 +216,7 @@
             <span class="stat"><span class="stat-label">BEST</span><span id="defenderBest">0</span></span>
             <span class="stat"><span class="stat-label">LIVES</span><span id="defenderLives">❤️❤️❤️</span></span>
             <span class="stat"><span class="stat-label">ACC</span><span id="defenderAcc">100%</span></span>
-            <button id="defenderLeaveBtn" class="ghost">Back</button>
+            <button id="defenderLeaveBtn" class="ghost">Home</button>
           </div>
         </header>
 
@@ -274,7 +275,10 @@
               <div><div class="muted">Accuracy</div><strong id="goAcc">0%</strong></div>
             </div>
             <p id="goNewBest" class="muted hidden"><span class="new-best">NEW BEST</span></p>
-            <button id="defenderRestartBtn" class="primary">Play Again</button>
+            <div class="gameover-actions">
+              <button id="defenderRestartBtn" class="primary">Play Again</button>
+              <button id="defenderHomeBtn" class="ghost">Home</button>
+            </div>
           </div>
         </div>
 
