@@ -40,6 +40,7 @@
           <div class="practice-cta">
             <button id="practiceBtn" class="ghost full">🎯 Practice Solo (test your WPM)</button>
             <button id="defenderBtn" class="ghost full" style="margin-top:8px">🚀 Space Defender (arcade mode)</button>
+            <button id="leaderboardBtn" class="ghost full" style="margin-top:8px">🏆 Leaderboard</button>
           </div>
         </div>
 
@@ -283,6 +284,47 @@
         </div>
 
         <input id="defenderInput" class="typing-input defender-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type the falling words…" />
+      </section>
+
+      <!-- LEADERBOARD -->
+      <section id="leaderboard" class="screen">
+        <header class="bar">
+          <div>
+            <span class="muted">Leaderboard</span>
+            <span class="code-pill" id="lbScopePill">RACE</span>
+          </div>
+          <div class="practice-controls">
+            <div class="seg" id="lbScopeSeg">
+              <button data-scope="race" class="active">Race</button>
+              <button data-scope="practice">Practice</button>
+              <button data-scope="defender">Defender</button>
+            </div>
+            <button id="lbHomeBtn" class="ghost">Home</button>
+          </div>
+        </header>
+
+        <div class="lb-filters">
+          <label class="diff-label">
+            Difficulty
+            <select id="lbDifficulty">
+              <option value="">All</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <label class="diff-label">
+            Theme
+            <select id="lbTheme">
+              <option value="">All</option>
+            </select>
+          </label>
+          <button id="lbRefreshBtn" class="ghost">Refresh</button>
+        </div>
+
+        <div id="lbBody" class="lb-body">
+          <p class="muted">Loading leaderboard…</p>
+        </div>
       </section>
 
       <!-- RESULTS -->

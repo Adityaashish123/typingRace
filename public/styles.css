@@ -851,3 +851,62 @@ button.full { width: 100%; }
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ====== Leaderboard ====== */
+.lb-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.lb-filters .diff-label select { width: auto; }
+.lb-body {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  padding: 6px 0;
+  overflow: hidden;
+}
+.lb-row {
+  display: grid;
+  grid-template-columns: 50px 36px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.lb-row:last-child { border-bottom: none; }
+.lb-row.head {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.lb-row .place {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lb-row.gold .place { color: var(--gold); }
+.lb-row.silver .place { color: var(--silver); }
+.lb-row.bronze .place { color: var(--bronze); }
+.lb-row .av { font-size: 22px; }
+.lb-row .name { font-weight: 600; }
+.lb-row .meta { color: var(--muted); font-size: 12px; }
+.lb-row .stat-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.lb-row .stat-cell .small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+
+.lb-empty, .lb-disabled {
+  text-align: center;
+  padding: 28px 16px;
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .lb-row { grid-template-columns: 36px 28px 1fr auto; padding: 10px 12px; gap: 8px; }
+  .lb-row .av { font-size: 18px; }
+}

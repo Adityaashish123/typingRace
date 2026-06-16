@@ -48,6 +48,20 @@
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
+  // Submit a result to the server. Failures are silently ignored — the local
+  // best is already saved, and a missing leaderboard shouldn't break the run.
+  async function postJson(url, body) {
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch {}
+  }
+  function submitPracticeResult(payload) { return postJson('/api/practice-result', payload); }
+  function submitDefenderResult(payload) { return postJson('/api/defender-result', payload); }
+
   // ====== Home: avatar grid ======
   function renderAvatars() {
     const grid = $('#avatarGrid');
@@ -745,6 +759,17 @@
       loadBests();
     }
 
+    // Submit to global leaderboard (no-op if server has no DB).
+    submitPracticeResult({
+      playerName: state.name || 'Anonymous',
+      avatar: state.avatar || '🚀',
+      wpm,
+      accuracy,
+      durationMs: Math.round(elapsedMs),
+      difficulty: practice.difficulty,
+      theme: ($('#practiceThemeSelect') && $('#practiceThemeSelect').value) || 'random',
+    });
+
     $('#prWpm').textContent = wpm + (isNewBest ? '' : '');
     $('#practiceResultTitle').innerHTML = isNewBest
       ? `Run Complete <span class="new-best">NEW BEST</span>`
@@ -1133,6 +1158,16 @@
     $('#goNewBest').classList.toggle('hidden', !isBest);
     $('#defenderGameOver').classList.remove('hidden');
     updateDefenderHUD();
+
+    // Submit to global leaderboard.
+    submitDefenderResult({
+      playerName: state.name || 'Anonymous',
+      avatar: state.avatar || '🚀',
+      score: defender.score,
+      level: defender.level,
+      wordsCleared: defender.wordsCleared,
+      accuracy: acc,
+    });
   }
 
   // Input handling: matches against the closest word starting with the typed prefix.
@@ -1229,11 +1264,116 @@
     if (e.key !== 'Escape') return;
     const active = document.querySelector('.screen.active');
     if (!active) return;
-    if (active.id === 'practice' || active.id === 'defender') {
+    if (active.id === 'practice' || active.id === 'defender' || active.id === 'leaderboard') {
       stopDefender();
       showScreen('home');
     }
   });
+
+  // ====== Leaderboard ======
+  const lbState = { scope: 'race' };
+
+  async function loadLeaderboard() {
+    const body = $('#lbBody');
+    const scope = lbState.scope;
+    const difficulty = $('#lbDifficulty').value;
+    const theme = $('#lbTheme').value;
+    body.innerHTML = '<p class="muted" style="text-align:center;padding:24px">Loading…</p>';
+
+    let url;
+    if (scope === 'race') {
+      url = `/api/leaderboard/race?limit=50${difficulty ? '&difficulty=' + difficulty : ''}${theme ? '&theme=' + encodeURIComponent(theme) : ''}`;
+    } else if (scope === 'practice') {
+      url = `/api/leaderboard/practice?limit=50${difficulty ? '&difficulty=' + difficulty : ''}${theme ? '&theme=' + encodeURIComponent(theme) : ''}`;
+    } else {
+      url = `/api/leaderboard/defender?limit=50`;
+    }
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.enabled) {
+        body.innerHTML = `<div class="lb-disabled">Leaderboard storage isn’t enabled on this server yet.<br/><span style="font-size:12px">Set <code>DATABASE_URL</code> to a Postgres instance to turn it on.</span></div>`;
+        return;
+      }
+      renderLeaderboard(scope, data.rows || []);
+    } catch (err) {
+      body.innerHTML = `<div class="lb-empty">Failed to load leaderboard. ${escapeHtml(err.message || '')}</div>`;
+    }
+  }
+
+  function renderLeaderboard(scope, rows) {
+    const body = $('#lbBody');
+    if (!rows.length) {
+      body.innerHTML = `<div class="lb-empty">No runs yet. Be the first!</div>`;
+      return;
+    }
+    const head = scope === 'defender'
+      ? '<div class="lb-row head"><span>Rank</span><span></span><span>Player</span><span class="stat-cell">Score</span></div>'
+      : '<div class="lb-row head"><span>Rank</span><span></span><span>Player</span><span class="stat-cell">WPM</span></div>';
+
+    const rowsHtml = rows.map((r, i) => {
+      const place = i + 1;
+      const cls = place === 1 ? 'gold' : place === 2 ? 'silver' : place === 3 ? 'bronze' : '';
+      const meta = scope === 'defender'
+        ? `Lv ${r.level} · ${r.words_cleared} words · ${r.accuracy}%`
+        : scope === 'practice'
+          ? `${r.difficulty} · ${(r.theme || 'random')} · ${r.accuracy}% acc`
+          : `${r.difficulty} · ${(r.theme || 'random')} · ${r.accuracy}% acc${r.finish_ms ? ` · ${(r.finish_ms / 1000).toFixed(1)}s` : ''}`;
+      const stat = scope === 'defender'
+        ? `<span class="stat-cell">${r.score}<span class="small">Lv ${r.level}</span></span>`
+        : `<span class="stat-cell">${r.wpm}<span class="small">WPM</span></span>`;
+      return `
+        <div class="lb-row ${cls}">
+          <span class="place">#${place}</span>
+          <span class="av">${escapeHtml(r.avatar || '🚀')}</span>
+          <span>
+            <div class="name">${escapeHtml(r.player_name || 'Anonymous')}</div>
+            <div class="meta">${escapeHtml(meta)}</div>
+          </span>
+          ${stat}
+        </div>
+      `;
+    }).join('');
+    body.innerHTML = head + rowsHtml;
+  }
+
+  $('#leaderboardBtn').addEventListener('click', () => {
+    showScreen('leaderboard');
+    // Make sure theme dropdown is populated
+    loadThemesIntoSelects();
+    // Sync the leaderboard's theme select after themes load (loadThemesIntoSelects targets only #themeSelect/#practiceThemeSelect)
+    fillLbThemeSelect();
+    loadLeaderboard();
+  });
+  $('#lbHomeBtn').addEventListener('click', () => showScreen('home'));
+  $('#lbScopeSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-scope]');
+    if (!btn) return;
+    lbState.scope = btn.dataset.scope;
+    $$('#lbScopeSeg button').forEach((b) => b.classList.toggle('active', b.dataset.scope === lbState.scope));
+    $('#lbScopePill').textContent = lbState.scope.toUpperCase();
+    // Defender doesn't have difficulty/theme filters; keep them visible but disabled-ish
+    const isDefender = lbState.scope === 'defender';
+    $('#lbDifficulty').disabled = isDefender;
+    $('#lbTheme').disabled = isDefender;
+    loadLeaderboard();
+  });
+  $('#lbDifficulty').addEventListener('change', loadLeaderboard);
+  $('#lbTheme').addEventListener('change', loadLeaderboard);
+  $('#lbRefreshBtn').addEventListener('click', loadLeaderboard);
+
+  function fillLbThemeSelect() {
+    const sel = $('#lbTheme');
+    if (!sel || !themesCache) return;
+    if (sel.children.length > 1) return; // already filled
+    themesCache.forEach((t) => {
+      const opt = document.createElement('option');
+      opt.value = t.key;
+      opt.textContent = t.label;
+      sel.appendChild(opt);
+    });
+  }
 
   $('#defender').addEventListener('click', (e) => {
     if (!defender.running) return;

@@ -3,8 +3,10 @@ const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
 const { getRandomText } = require('./texts');
+const db = require('./db');
 
 const app = express();
+app.use(express.json({ limit: '4kb' }));
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
@@ -24,6 +26,62 @@ app.get('/api/themes', (req, res) => {
   const { THEMES } = require('./texts');
   const list = Object.keys(THEMES).map((key) => ({ key, label: THEMES[key].label }));
   res.json({ themes: list });
+});
+
+// ====== Leaderboard endpoints ======
+app.get('/api/leaderboard/race', async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 50;
+  const difficulty = ['easy', 'medium', 'hard'].includes(req.query.difficulty) ? req.query.difficulty : undefined;
+  const theme = typeof req.query.theme === 'string' ? req.query.theme : undefined;
+  const rows = await db.getRaceLeaderboard({ limit, difficulty, theme });
+  res.json({ enabled: db.isEnabled(), rows });
+});
+
+app.get('/api/leaderboard/practice', async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 50;
+  const difficulty = ['easy', 'medium', 'hard'].includes(req.query.difficulty) ? req.query.difficulty : undefined;
+  const theme = typeof req.query.theme === 'string' ? req.query.theme : undefined;
+  const rows = await db.getPracticeLeaderboard({ limit, difficulty, theme });
+  res.json({ enabled: db.isEnabled(), rows });
+});
+
+app.get('/api/leaderboard/defender', async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 50;
+  const rows = await db.getDefenderLeaderboard({ limit });
+  res.json({ enabled: db.isEnabled(), rows });
+});
+
+// ====== Submission endpoints (server validates ranges before saving) ======
+app.post('/api/practice-result', async (req, res) => {
+  const { playerName, avatar, wpm, accuracy, durationMs, difficulty, theme } = req.body || {};
+  if (!['easy', 'medium', 'hard'].includes(difficulty)) return res.status(400).json({ ok: false, error: 'bad difficulty' });
+  // Sanity-check WPM ceiling and minimum run duration so a "0ms 250wpm" can't slip in.
+  const w = Math.max(0, Math.min(250, Math.round(Number(wpm) || 0)));
+  const a = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
+  const d = Math.max(0, Math.round(Number(durationMs) || 0));
+  if (d < 1500) return res.status(400).json({ ok: false, error: 'run too short' });
+  await db.recordPracticeRun({
+    playerName,
+    avatar,
+    wpm: w,
+    accuracy: a,
+    durationMs: d,
+    difficulty,
+    theme: typeof theme === 'string' ? theme : 'random',
+  });
+  res.json({ ok: true });
+});
+
+app.post('/api/defender-result', async (req, res) => {
+  const { playerName, avatar, score, level, wordsCleared, accuracy } = req.body || {};
+  const s = Math.max(0, Math.round(Number(score) || 0));
+  const l = Math.max(1, Math.round(Number(level) || 1));
+  const w = Math.max(0, Math.round(Number(wordsCleared) || 0));
+  const a = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
+  // sanity: must have actually cleared at least 1 word for a score
+  if (s > 0 && w < 1) return res.status(400).json({ ok: false, error: 'inconsistent' });
+  await db.recordDefenderRun({ playerName, avatar, score: s, level: l, wordsCleared: w, accuracy: a });
+  res.json({ ok: true });
 });
 
 // In-memory room store. For a real product, swap with Redis.
@@ -129,6 +187,22 @@ function finishRace(code) {
     p.place = finishedCount + idx + 1;
   });
   broadcastRoom(code);
+
+  // Persist multiplayer race results (no-op when DB isn't connected).
+  db.recordMultiplayerResults({
+    roomCode: room.code,
+    difficulty: room.difficulty,
+    theme: room.theme,
+    players: Array.from(room.players.values()).map((p) => ({
+      name: p.name,
+      avatar: p.avatar,
+      wpm: p.wpm,
+      accuracy: p.accuracy,
+      finishTime: p.finishTime,
+      place: p.place,
+      finished: p.finished,
+    })),
+  }).catch(() => {});
 }
 
 const POWER_UP_TYPES = ['fog', 'shake', 'reverse'];
@@ -371,6 +445,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+db.init().catch((err) => console.error('[db] init error:', err.message));
 server.listen(PORT, HOST, () => {
   console.log(`🏁 Typing Race running at http://localhost:${PORT}`);
   console.log(`   LAN: any device on your Wi-Fi can reach http://<your-lan-ip>:${PORT}`);
