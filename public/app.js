@@ -910,7 +910,7 @@
     const arenaH = defender.arenaRect.height;
     const arenaW = defender.arenaRect.width;
     const fallSpeed = fallSpeedForLevel(defender.level);
-    const shipBottomMargin = 70; // ship size + bottom padding
+    const shipBottomMargin = 96; // ship sprite + flames + bottom padding
 
     for (let i = defender.words.length - 1; i >= 0; i--) {
       const w = defender.words[i];
@@ -1024,9 +1024,9 @@
     const el = document.createElement('div');
     el.className = 'def-bullet';
     el.style.left = targetWord.x + 'px';
-    el.style.top = (arenaH - 60) + 'px';
+    el.style.top = (arenaH - 110) + 'px';
     dBulletsLayer.appendChild(el);
-    defender.bullets.push({ y: arenaH - 60, targetId: targetWord.id, el });
+    defender.bullets.push({ y: arenaH - 110, targetId: targetWord.id, el });
   }
 
   function updateDefenderHUD() {

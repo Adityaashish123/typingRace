@@ -545,10 +545,64 @@ button.full { width: 100%; }
   bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 40px;
-  filter: drop-shadow(0 0 6px rgba(124, 92, 255, 0.55));
+  width: 56px;
+  height: 110px;
+  filter: drop-shadow(0 0 8px rgba(124, 92, 255, 0.55));
   transition: left 120ms ease;
   z-index: 4;
+  animation: shipBob 2.4s ease-in-out infinite;
+}
+.defender-ship .ship-svg {
+  width: 100%;
+  height: 84px;
+  display: block;
+  position: relative;
+  z-index: 2;
+}
+.defender-ship .ship-flames {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 36px;
+  pointer-events: none;
+  z-index: 1;
+}
+.defender-ship .flame {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 30% 30%;
+  filter: blur(0.4px);
+}
+.defender-ship .flame-outer {
+  width: 22px;
+  height: 32px;
+  background: radial-gradient(circle at 50% 30%, #ffd166 0%, #ff8a3d 40%, rgba(255, 80, 80, 0.0) 80%);
+  animation: flameFlick 220ms ease-in-out infinite alternate;
+  opacity: 0.95;
+}
+.defender-ship .flame-mid {
+  width: 14px;
+  height: 24px;
+  background: radial-gradient(circle at 50% 30%, #fff5c8 0%, #ffae3a 60%, rgba(255, 130, 50, 0.0) 90%);
+  animation: flameFlick 160ms ease-in-out infinite alternate-reverse;
+}
+.defender-ship .flame-inner {
+  width: 6px;
+  height: 14px;
+  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #ffeaa0 70%, rgba(255, 220, 100, 0.0) 100%);
+  animation: flameFlick 120ms ease-in-out infinite alternate;
+}
+@keyframes flameFlick {
+  0%   { transform: translateX(-50%) scale(0.85, 0.95); opacity: 0.85; }
+  100% { transform: translateX(-50%) scale(1.05, 1.15); opacity: 1; }
+}
+@keyframes shipBob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-3px); }
 }
 
 .defender-words {

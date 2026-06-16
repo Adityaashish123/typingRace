@@ -223,7 +223,40 @@
           <div id="defenderStars" class="defender-stars"></div>
           <div id="defenderWords" class="defender-words"></div>
           <div id="defenderBullets" class="defender-bullets"></div>
-          <div id="defenderShip" class="defender-ship">🚀</div>
+          <div id="defenderShip" class="defender-ship">
+            <div class="ship-flames">
+              <span class="flame flame-outer"></span>
+              <span class="flame flame-mid"></span>
+              <span class="flame flame-inner"></span>
+            </div>
+            <svg class="ship-svg" viewBox="0 0 64 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <!-- Outer hull -->
+              <path d="M32 4 C20 18 14 36 14 60 L14 76 L24 76 L24 84 L40 84 L40 76 L50 76 L50 60 C50 36 44 18 32 4 Z"
+                    fill="url(#hullGrad)" stroke="#9aa6c7" stroke-width="1"/>
+              <!-- Wings -->
+              <path d="M14 56 L4 80 L14 76 Z" fill="#7c5cff" stroke="#5544c2" stroke-width="1"/>
+              <path d="M50 56 L60 80 L50 76 Z" fill="#7c5cff" stroke="#5544c2" stroke-width="1"/>
+              <!-- Cockpit window -->
+              <ellipse cx="32" cy="34" rx="9" ry="11" fill="url(#cockpitGrad)" stroke="#1a2340" stroke-width="1.5"/>
+              <ellipse cx="29" cy="30" rx="3" ry="4" fill="rgba(255,255,255,0.55)"/>
+              <!-- Body line accents -->
+              <line x1="32" y1="50" x2="32" y2="74" stroke="#5b6585" stroke-width="1" opacity="0.7"/>
+              <!-- Thrusters base -->
+              <rect x="22" y="76" width="20" height="6" rx="2" fill="#3a4470"/>
+              <defs>
+                <linearGradient id="hullGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#eef1ff"/>
+                  <stop offset="50%" stop-color="#c8d0ee"/>
+                  <stop offset="100%" stop-color="#8a95bf"/>
+                </linearGradient>
+                <radialGradient id="cockpitGrad" cx="0.4" cy="0.35" r="0.7">
+                  <stop offset="0%" stop-color="#a8e8ff"/>
+                  <stop offset="60%" stop-color="#3aa5d6"/>
+                  <stop offset="100%" stop-color="#0e3a55"/>
+                </radialGradient>
+              </defs>
+            </svg>
+          </div>
 
           <div id="defenderStart" class="defender-overlay">
             <h2>Space Defender 🚀</h2>
