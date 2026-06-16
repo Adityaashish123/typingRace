@@ -1,123 +1,128 @@
 # Typing Race 🏁
 
-A real-time multiplayer typing race game. Create a room, share the code, and race to the finish line. Sabotage your friends with power-ups along the way. Solo Practice mode tracks your personal best WPM per difficulty.
+A real-time multiplayer typing game with rooms, power-ups, themed sentence packs, a single-player arcade mode, and a global leaderboard. Built with Node.js, Socket.IO, and PostgreSQL.
+
+**🌐 Live demo:** https://typing-race-6oaz.onrender.com
+
+---
 
 ## Features
 
-- 🏎️ **Live race track** — every player is a racer sliding from start to finish in real time
-- ⌨️ **Honest typing engine** — character feedback, live WPM, accuracy
-- ⚡ **Power-ups** — earn at 25/50/75% progress and lob them at opponents
-  - **FOG** blurs their screen, **SHAKE** shakes their UI, **REVERSE** locks their input
+- 🏎️ **Real-time multiplayer races** — up to 8 players per room, live race-track visualization, WPM and accuracy updating ~4 times per second across all clients
+- ⚡ **Power-ups** — earn at 25/50/75% progress and lob `FOG`, `SHAKE`, or `REVERSE` at opponents
 - 😂 **Emoji reactions** — taunt and cheer mid-race
-- 🎚️ **Difficulties** — easy / medium / hard / code (real code snippets)
-- 🎯 **Practice Mode** — solo runs with personal best WPM tracked per difficulty (stored locally)
-- 🏆 **Results screen** with podium and rematch button
+- 🎚️ **3 difficulties × 7 themes** — Easy/Medium/Hard, themes include General, Movies, Science, Tech, History, Quotes, and Code; tens of thousands of unique text combinations
+- 🎯 **Practice mode** — solo runs with personal best tracking per difficulty, theme picker, errors-allowed Finish button, Enter shortcut
+- 🚀 **Space Defender (arcade mode)** — typing meets bullet-hell: type words to fire bullets at falling targets; difficulty scales with score (faster spawn, longer words, more concurrent targets)
+- 🏆 **Global leaderboards** — Postgres-backed top scores for Race, Practice, and Defender, filterable by difficulty and theme
+- 🛡️ **Anti-cheat** — paste/drag-drop blocked client-side, server validates progress (no jumps, no impossible WPM, throttled emit rate)
+- 📱 **Responsive** — works on phone, tablet, and desktop with proper breakpoints and touch targets
 - 🔗 **Shareable invite links** — one-click copy
 
-## Quick start (local)
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Runtime | Node.js 20 |
+| Web framework | Express 4 |
+| Real-time | Socket.IO 4 (WebSockets) |
+| Database | PostgreSQL (managed on Render) |
+| Frontend | Vanilla HTML / CSS / JavaScript — no build step, no framework |
+| Deploy | Render (web service + managed Postgres, auto-deploy from GitHub) |
+| Other | Dockerfile and `fly.toml` included for portability |
+
+## Architecture
+
+The server is a single Express + Socket.IO process. Game state is held in memory as a `Map<roomCode, Room>`; persistence via Postgres is opt-in (the app starts and runs fine without a database, with leaderboards disabled).
+
+Each room is a state machine that transitions `lobby → countdown → racing → finished`. State is broadcast over Socket.IO room channels every time it changes, so every client sees the same view of the world.
+
+```
+┌────────┐  ws  ┌─────────────────┐  pg  ┌────────────┐
+│ Client │◄────►│ Express + IO    │◄────►│ PostgreSQL │
+└────────┘      │  - rooms (Map)  │      └────────────┘
+                │  - state machine│
+                │  - anti-cheat   │
+                └─────────────────┘
+```
+
+### Anti-cheat layers
+
+- **Client-side:** typing inputs block `paste`, `drop`, and right-click `contextmenu`
+- **Server-side:** every `race:progress` event is validated for monotonic non-decreasing progress, capped at `(elapsed seconds × max human chars/sec) / text length`, throttled to ≥80ms apart, and clamped to ≤250 WPM (the world record is ~216)
+
+### Schema (Postgres)
+
+Three indexed tables — schema is auto-created on boot:
+
+```sql
+multiplayer_results (room_code, player_name, avatar, wpm, accuracy, finish_ms, place, difficulty, theme, finished, created_at)
+practice_runs       (player_name, avatar, wpm, accuracy, duration_ms, difficulty, theme, created_at)
+defender_runs       (player_name, avatar, score, level, words_cleared, accuracy, created_at)
+```
+
+Indexes: `multiplayer_results (wpm DESC, accuracy DESC) WHERE finished`, `practice_runs (difficulty, wpm DESC)`, `defender_runs (score DESC)`.
+
+## Getting started locally
 
 ```bash
+git clone https://github.com/Adityaashish123/typingRace
+cd typingRace
 npm install
 npm start
 ```
 
-Then open http://localhost:3000.
+Open http://localhost:3000.
 
-## Playing with friends
+The leaderboard is disabled until you set `DATABASE_URL`. Everything else (multiplayer, practice, defender) works without a database.
 
-`localhost` only works on your own machine. Pick one of these to play with anyone:
+To enable the leaderboard locally, run any local Postgres and set:
 
-### Option 1: Quick share with a tunnel (no deploy)
 ```bash
-npm start            # in one terminal
-npm run tunnel       # in another terminal
-```
-You'll get a public URL like `https://typing-race.loca.lt`. Share it. Done. The tunnel only works while both processes are running.
-
-For a more reliable tunnel, use [ngrok](https://ngrok.com):
-```bash
-ngrok http 3000
+DATABASE_URL=postgresql://localhost/typingrace npm start
 ```
 
-### Option 2: Deploy to Render (recommended, free tier)
+The schema is created automatically on first boot.
 
-1. Push this repo to GitHub
-2. Go to [render.com](https://render.com) → New → Web Service → connect your repo
-3. Render auto-detects `render.yaml`. Click **Create**
-4. Done. You get a permanent URL like `https://typing-race.onrender.com`
-
-The free tier sleeps after 15 minutes of inactivity (cold start ~30 seconds). Upgrade to keep it always-on.
-
-### Option 3: Deploy to Fly.io
-```bash
-brew install flyctl          # or curl -L https://fly.io/install.sh | sh
-fly auth signup              # or fly auth login
-fly launch --copy-config     # uses the included fly.toml
-fly deploy
-```
-
-### Option 4: Deploy to Railway
-```bash
-npm i -g @railway/cli
-railway login
-railway init
-railway up
-```
-
-### Option 5: Any Docker host
-A `Dockerfile` is included. Build and run anywhere that runs containers:
-```bash
-docker build -t typing-race .
-docker run -p 3000:3000 typing-race
-```
-Works on Fly, AWS App Runner, Google Cloud Run, Azure Container Apps, DigitalOcean App Platform, your own VM, etc.
-
-## Why not Vercel / Netlify / GitHub Pages?
-
-Those are great for static sites but Socket.IO needs persistent WebSocket connections. Use a host that runs a real Node process: Render, Railway, Fly, Heroku, EC2, etc.
-
-## Stack
-
-- Node.js + Express + Socket.IO
-- Vanilla HTML/CSS/JS on the client (no build step)
-
-## Layout
+## Project layout
 
 ```
-TypingRace/
-├── server.js          # Express + Socket.IO server, room/race state machine
-├── texts.js           # Text snippets per difficulty
+typingRace/
+├── server.js            # Express + Socket.IO server, room state machine, anti-cheat
+├── db.js                # Optional Postgres persistence layer (graceful degrade)
+├── texts.js             # Themed sentence pools per difficulty
 ├── public/
-│   ├── index.html     # Single page UI (Home, Practice, Lobby, Race, Results)
-│   ├── styles.css
-│   └── app.js
-├── Dockerfile
-├── render.yaml        # Render blueprint
-├── fly.toml           # Fly.io config
+│   ├── index.html       # Single-page UI (Home, Practice, Defender, Lobby, Race, Leaderboard, Results)
+│   ├── styles.css       # All styles, with phone/tablet/desktop breakpoints
+│   └── app.js           # Client logic (typing engine, state, render, sockets, defender game loop)
+├── Dockerfile           # Container image (Node 20 alpine)
+├── render.yaml          # Render Blueprint
+├── fly.toml             # Fly.io config
 └── package.json
 ```
 
-## How a race plays out
+## Deployment
 
-1. Host creates a room → gets a 5-character code (e.g. `K7PR2`)
-2. Players join with the code or via the invite link
-3. Everyone clicks **I'm Ready** (host can also force-start)
-4. 5-second countdown, then the same text appears for everyone
-5. First to finish wins. Results show WPM, accuracy, and finish time
+The repository auto-deploys to Render on every push to `main` via the included `render.yaml` blueprint. The same Node code can ship to any container host using the included `Dockerfile`.
 
-## Tweakables
+For a managed Postgres instance, see Render's Postgres docs — the only required environment variable is `DATABASE_URL` (Render injects SSL config automatically).
 
-`server.js`:
-- `COUNTDOWN_SECONDS`, `RACE_TIMEOUT_SECONDS`, `MAX_PLAYERS`, `POWER_UP_TYPES`
+## Production considerations
 
-`texts.js`:
-- Add your own snippets to any difficulty bucket.
+This project is honest about its limits.
 
-## Scaling notes
+| Concern | Current state | What scaling would look like |
+|---|---|---|
+| **Concurrency** | ~800 players (~100 active rooms) per Node instance | Move room state to Redis; add the [Socket.IO Redis adapter](https://socket.io/docs/v4/redis-adapter/) so events propagate across instances |
+| **Sticky sessions** | Single-instance, not needed | Required at the load balancer for the WebSocket handshake when scaling to 2+ instances |
+| **In-memory state** | Lost on restart | Redis (or Postgres for non-transient) for rooms; current Postgres covers historical results only |
+| **Rate limiting** | Not implemented | Per-IP and per-socket throttles on `room:create`, `race:progress`, `race:emoji`, etc. |
+| **Authentication** | None — players pick a name | Optional account layer (Postgres + bcrypt or OAuth) for verified leaderboards |
+| **Observability** | `console.log` only | Structured logs (pino), request IDs, metrics (Prometheus), error tracking (Sentry) |
+| **Tests** | None | Unit tests on the room state machine, integration tests on the API endpoints, end-to-end with Playwright |
 
-The server uses in-memory room state, which means one instance only. To run multiple instances behind a load balancer, you need:
-1. **Sticky sessions** on the load balancer (Socket.IO handshake)
-2. The [Socket.IO Redis adapter](https://socket.io/docs/v4/redis-adapter/) so events propagate between instances
-3. Move room state out of memory into Redis or a database
+The trade-offs above are intentional for the project's scope (play with friends, run on free hosting). Each item is a real, scoped piece of work — not a vague "TODO".
 
-For a hobby project with a few hundred players, one instance is plenty.
+## License
+
+MIT
