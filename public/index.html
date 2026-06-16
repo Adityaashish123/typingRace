@@ -39,6 +39,7 @@
 
           <div class="practice-cta">
             <button id="practiceBtn" class="ghost full">🎯 Practice Solo (test your WPM)</button>
+            <button id="defenderBtn" class="ghost full" style="margin-top:8px">🚀 Space Defender (arcade mode)</button>
           </div>
         </div>
 
@@ -200,6 +201,51 @@
         <div id="effectOverlay" class="effect-overlay"></div>
         <div id="emojiPop" class="emoji-pop"></div>
         <div id="toasts" class="toasts"></div>
+      </section>
+
+      <!-- SPACE DEFENDER -->
+      <section id="defender" class="screen">
+        <header class="bar">
+          <div>
+            <span class="muted">Space Defender</span>
+            <span class="code-pill"><span id="defenderLevel">LV 1</span></span>
+          </div>
+          <div class="defender-stats">
+            <span class="stat"><span class="stat-label">SCORE</span><span id="defenderScore">0</span></span>
+            <span class="stat"><span class="stat-label">BEST</span><span id="defenderBest">0</span></span>
+            <span class="stat"><span class="stat-label">LIVES</span><span id="defenderLives">❤️❤️❤️</span></span>
+            <span class="stat"><span class="stat-label">ACC</span><span id="defenderAcc">100%</span></span>
+            <button id="defenderLeaveBtn" class="ghost">Back</button>
+          </div>
+        </header>
+
+        <div id="defenderArena" class="defender-arena">
+          <div id="defenderStars" class="defender-stars"></div>
+          <div id="defenderWords" class="defender-words"></div>
+          <div id="defenderBullets" class="defender-bullets"></div>
+          <div id="defenderShip" class="defender-ship">🚀</div>
+
+          <div id="defenderStart" class="defender-overlay">
+            <h2>Space Defender 🚀</h2>
+            <p class="muted">Type the falling words before they crash into your ship.</p>
+            <p class="muted">Each correct word fires a bullet. Levels get faster.</p>
+            <button id="defenderStartBtn" class="primary">Launch</button>
+          </div>
+
+          <div id="defenderGameOver" class="defender-overlay hidden">
+            <h2>Game Over</h2>
+            <div class="gameover-stats">
+              <div><div class="muted">Score</div><strong id="goScore">0</strong></div>
+              <div><div class="muted">Level</div><strong id="goLevel">1</strong></div>
+              <div><div class="muted">Words</div><strong id="goWords">0</strong></div>
+              <div><div class="muted">Accuracy</div><strong id="goAcc">0%</strong></div>
+            </div>
+            <p id="goNewBest" class="muted hidden"><span class="new-best">NEW BEST</span></p>
+            <button id="defenderRestartBtn" class="primary">Play Again</button>
+          </div>
+        </div>
+
+        <input id="defenderInput" class="typing-input defender-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type the falling words…" />
       </section>
 
       <!-- RESULTS -->

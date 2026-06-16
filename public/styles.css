@@ -500,3 +500,147 @@ button.full { width: 100%; }
   .best-row { grid-template-columns: 1fr; }
   .practice-result-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ====== Space Defender ====== */
+.defender-stats {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+}
+.defender-stats .stat-label { font-size: 10px; }
+.defender-stats .stat span:last-child { font-size: 16px; }
+
+.defender-arena {
+  position: relative;
+  width: 100%;
+  height: 560px;
+  border-radius: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(800px 400px at 50% 110%, rgba(124, 92, 255, 0.18), transparent 60%),
+    linear-gradient(180deg, #050816 0%, #0a0f24 50%, #0c1430 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 12px;
+}
+
+.defender-stars {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.9) 50%, transparent 60%),
+    radial-gradient(1px 1px at 75% 15%, rgba(255,255,255,0.7) 50%, transparent 60%),
+    radial-gradient(1px 1px at 50% 80%, rgba(255,255,255,0.8) 50%, transparent 60%),
+    radial-gradient(1.5px 1.5px at 35% 60%, rgba(255,255,255,0.6) 50%, transparent 60%),
+    radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.85) 50%, transparent 60%),
+    radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,0.7) 50%, transparent 60%),
+    radial-gradient(1.5px 1.5px at 60% 40%, rgba(255,255,255,0.5) 50%, transparent 60%);
+  background-size: 100% 200%;
+  animation: starScroll 18s linear infinite;
+  opacity: 0.85;
+}
+@keyframes starScroll {
+  from { background-position: 0 0; }
+  to   { background-position: 0 100%; }
+}
+
+.defender-ship {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 40px;
+  filter: drop-shadow(0 0 6px rgba(124, 92, 255, 0.55));
+  transition: left 120ms ease;
+  z-index: 4;
+}
+
+.defender-words {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.def-word {
+  position: absolute;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 18px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(15, 20, 40, 0.7);
+  border: 1px solid rgba(255,255,255,0.12);
+  white-space: nowrap;
+  user-select: none;
+  letter-spacing: 0.5px;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+.def-word.targeted { border-color: var(--accent); box-shadow: 0 0 14px rgba(124, 92, 255, 0.55); }
+.def-word .typed { color: var(--good); }
+.def-word .rest { color: var(--fg); }
+.def-word.exploding { animation: explode 280ms ease forwards; }
+@keyframes explode {
+  to { transform: translate(-50%, 0) scale(1.6); opacity: 0; filter: blur(2px); }
+}
+
+.defender-bullets { position: absolute; inset: 0; pointer-events: none; }
+.def-bullet {
+  position: absolute;
+  width: 4px; height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #ffe9a8, #ff6b6b);
+  box-shadow: 0 0 8px rgba(255, 200, 100, 0.85);
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.defender-input {
+  font-size: 18px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.defender-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(5, 8, 22, 0.78);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  text-align: center;
+  padding: 24px;
+}
+.defender-overlay h2 { margin: 0 0 8px; }
+.defender-overlay .primary { margin-top: 14px; padding: 12px 28px; }
+
+.gameover-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 10px 0 6px;
+  min-width: 320px;
+}
+.gameover-stats strong { font-size: 22px; display: block; margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .gameover-stats { grid-template-columns: repeat(2, 1fr); }
+  .defender-arena { height: 480px; }
+}
+
+.defender-arena.hit { animation: arenaShake 240ms ease; }
+@keyframes arenaShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.defender-arena.flash::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255, 80, 80, 0.25);
+  z-index: 9;
+  pointer-events: none;
+  animation: flashFade 240ms ease forwards;
+}
+@keyframes flashFade { from { opacity: 1; } to { opacity: 0; } }
+
+.defender-input.shake { animation: defShake 180ms ease; border-color: var(--bad) !important; }
+@keyframes defShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}

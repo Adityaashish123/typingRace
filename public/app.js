@@ -779,5 +779,372 @@
     pInput.focus();
   });
 
+  // ====== Space Defender (single-player arcade typing) ======
+  const defender = {
+    running: false,
+    paused: false,
+    rafId: null,
+    arena: null,
+    arenaRect: null,
+    ship: null,
+    wordsLayer: null,
+    bulletsLayer: null,
+    input: null,
+    words: [],   // active words on screen
+    bullets: [],
+    score: 0,
+    level: 1,
+    lives: 3,
+    correctChars: 0,
+    totalKeys: 0,
+    wordsCleared: 0,
+    spawnIntervalMs: 1800,
+    lastSpawnAt: 0,
+    lastFrameAt: 0,
+    targetedId: null, // id of word being matched
+    wordPool: null,
+  };
+
+  const dArena = $('#defenderArena');
+  const dShip = $('#defenderShip');
+  const dWordsLayer = $('#defenderWords');
+  const dBulletsLayer = $('#defenderBullets');
+  const dInput = $('#defenderInput');
+
+  // A small word pool for the arcade mode. Short, common English words
+  // so the gameplay stays brisk; difficulty scales by length and speed.
+  const DEFENDER_WORDS_SHORT = [
+    'jump','code','rocket','space','star','warp','laser','beam','shield','dodge',
+    'fast','plasma','quark','orbit','nova','pulse','meteor','comet','alien','ray',
+    'echo','glow','flux','core','beam','beep','boop','quick','snap','bolt',
+    'flame','spark','frost','blaze','swift','byte','bit','data','flow','grid',
+    'node','pixel','chip','disk','file','heap','loop','mesh','ping','queue',
+    'sync','tape','task','wire','zone','aero','azur','blue','calm','duck',
+    'edge','foam','game','hint','iron','jolt','keen','lake','milk','navy',
+    'open','park','rain','sail','tide','urge','vine','warm','xray','yarn',
+  ];
+  const DEFENDER_WORDS_LONG = [
+    'asteroid','cosmonaut','telescope','satellite','algorithm','keyboard',
+    'frequency','hyperspace','wormhole','navigator','ionosphere','spaceport',
+    'gravitas','starship','meteorite','quasar','nebula','radiation',
+    'commander','quantum','encrypt','protocol','interface','momentum',
+    'parallax','firmware','snapshot','redshift','blueshift','escape',
+  ];
+
+  function pickWord(level) {
+    // Higher level -> more chance of long words.
+    const longChance = Math.min(0.7, 0.1 + level * 0.07);
+    const list = Math.random() < longChance ? DEFENDER_WORDS_LONG : DEFENDER_WORDS_SHORT;
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function levelFromScore(score) {
+    // Roughly: every 8 cleared words bumps level. Score per word can be 10-30+, so use
+    // wordsCleared as the canonical signal.
+    return 1 + Math.floor(defender.wordsCleared / 8);
+  }
+
+  function spawnIntervalForLevel(level) {
+    // Starts at 1800ms, decreases gradually but never below ~450ms.
+    return Math.max(450, 1800 - (level - 1) * 140);
+  }
+
+  function fallSpeedForLevel(level) {
+    // px per second. Starts gentle, grows faster than spawn rate decreases.
+    return 35 + (level - 1) * 9;
+  }
+
+  function maxConcurrentForLevel(level) {
+    return Math.min(8, 3 + Math.floor((level - 1) / 2));
+  }
+
+  function startDefender() {
+    showScreen('defender');
+    $('#defenderStart').classList.add('hidden');
+    $('#defenderGameOver').classList.add('hidden');
+    defender.running = true;
+    defender.score = 0;
+    defender.level = 1;
+    defender.lives = 3;
+    defender.correctChars = 0;
+    defender.totalKeys = 0;
+    defender.wordsCleared = 0;
+    defender.words.forEach((w) => w.el.remove());
+    defender.bullets.forEach((b) => b.el.remove());
+    defender.words = [];
+    defender.bullets = [];
+    defender.targetedId = null;
+    defender.spawnIntervalMs = spawnIntervalForLevel(1);
+    defender.lastSpawnAt = performance.now();
+    defender.lastFrameAt = performance.now();
+    updateDefenderHUD();
+    dInput.value = '';
+    dInput.disabled = false;
+    setTimeout(() => dInput.focus(), 30);
+
+    if (defender.rafId) cancelAnimationFrame(defender.rafId);
+    defender.rafId = requestAnimationFrame(defenderLoop);
+  }
+
+  function stopDefender() {
+    defender.running = false;
+    if (defender.rafId) cancelAnimationFrame(defender.rafId);
+    defender.rafId = null;
+  }
+
+  function defenderLoop(now) {
+    if (!defender.running) return;
+    const dt = Math.min(64, now - defender.lastFrameAt) / 1000; // seconds, clamp big jumps
+    defender.lastFrameAt = now;
+
+    // Refresh arena rect each frame in case of resize
+    defender.arenaRect = dArena.getBoundingClientRect();
+
+    // Spawn words
+    if (now - defender.lastSpawnAt > defender.spawnIntervalMs && defender.words.length < maxConcurrentForLevel(defender.level)) {
+      spawnDefenderWord();
+      defender.lastSpawnAt = now;
+    }
+
+    // Move words
+    const arenaH = defender.arenaRect.height;
+    const arenaW = defender.arenaRect.width;
+    const fallSpeed = fallSpeedForLevel(defender.level);
+    const shipBottomMargin = 70; // ship size + bottom padding
+
+    for (let i = defender.words.length - 1; i >= 0; i--) {
+      const w = defender.words[i];
+      if (w.exploding) continue;
+      w.y += fallSpeed * dt;
+      w.el.style.top = w.y + 'px';
+      if (w.y >= arenaH - shipBottomMargin) {
+        // Collided with ship area
+        loseLife(w);
+      }
+    }
+
+    // Move bullets
+    for (let i = defender.bullets.length - 1; i >= 0; i--) {
+      const b = defender.bullets[i];
+      b.y -= 600 * dt;
+      b.el.style.top = b.y + 'px';
+      // If bullet reached its target word, explode and clean up
+      const target = defender.words.find((w) => w.id === b.targetId && !w.exploding);
+      if (target) {
+        const targetTop = target.y;
+        if (b.y <= targetTop + 14) {
+          explodeWord(target);
+          b.el.remove();
+          defender.bullets.splice(i, 1);
+          continue;
+        }
+      } else {
+        // Target gone (e.g. lost), retire bullet when off screen
+        if (b.y < -20) {
+          b.el.remove();
+          defender.bullets.splice(i, 1);
+        }
+      }
+    }
+
+    if (defender.running) defender.rafId = requestAnimationFrame(defenderLoop);
+  }
+
+  function spawnDefenderWord() {
+    const arenaW = defender.arenaRect.width;
+    const word = pickWord(defender.level);
+    const el = document.createElement('div');
+    el.className = 'def-word';
+    el.innerHTML = `<span class="typed"></span><span class="rest">${escapeHtml(word)}</span>`;
+    // Random horizontal position with some padding from edges
+    const padding = 60;
+    const x = padding + Math.random() * Math.max(0, arenaW - padding * 2);
+    el.style.left = x + 'px';
+    el.style.top = '-30px';
+    dWordsLayer.appendChild(el);
+    defender.words.push({
+      id: Math.random().toString(36).slice(2, 9),
+      word,
+      typed: '',
+      x,
+      y: -30,
+      el,
+      exploding: false,
+    });
+  }
+
+  function explodeWord(w) {
+    if (w.exploding) return;
+    w.exploding = true;
+    w.el.classList.add('exploding');
+    // Score: base + length bonus
+    const points = 10 + w.word.length * 2;
+    defender.score += points;
+    defender.wordsCleared += 1;
+    defender.correctChars += w.word.length;
+    const newLevel = levelFromScore(defender.score);
+    if (newLevel !== defender.level) {
+      defender.level = newLevel;
+      defender.spawnIntervalMs = spawnIntervalForLevel(newLevel);
+    }
+    setTimeout(() => {
+      w.el.remove();
+      defender.words = defender.words.filter((x) => x !== w);
+    }, 280);
+    if (defender.targetedId === w.id) {
+      defender.targetedId = null;
+      dInput.value = '';
+    }
+    updateDefenderHUD();
+  }
+
+  function loseLife(w) {
+    w.exploding = true;
+    w.el.classList.add('exploding');
+    setTimeout(() => {
+      w.el.remove();
+      defender.words = defender.words.filter((x) => x !== w);
+    }, 280);
+    if (defender.targetedId === w.id) {
+      defender.targetedId = null;
+      dInput.value = '';
+    }
+    defender.lives = Math.max(0, defender.lives - 1);
+    dArena.classList.add('hit', 'flash');
+    setTimeout(() => dArena.classList.remove('hit', 'flash'), 260);
+    updateDefenderHUD();
+    if (defender.lives <= 0) gameOverDefender();
+  }
+
+  function fireBullet(targetWord) {
+    const arenaH = defender.arenaRect.height;
+    const arenaW = defender.arenaRect.width;
+    // Fire from ship position toward word x
+    const shipX = arenaW / 2;
+    const el = document.createElement('div');
+    el.className = 'def-bullet';
+    el.style.left = targetWord.x + 'px';
+    el.style.top = (arenaH - 60) + 'px';
+    dBulletsLayer.appendChild(el);
+    defender.bullets.push({ y: arenaH - 60, targetId: targetWord.id, el });
+  }
+
+  function updateDefenderHUD() {
+    $('#defenderScore').textContent = defender.score;
+    $('#defenderLevel').textContent = 'LV ' + defender.level;
+    $('#defenderLives').textContent = '❤️'.repeat(Math.max(0, defender.lives)) || '💀';
+    const acc = defender.totalKeys > 0 ? Math.round((defender.correctChars / defender.totalKeys) * 100) : 100;
+    $('#defenderAcc').textContent = acc + '%';
+    const best = parseInt(localStorage.getItem('tr.defender.best') || '0', 10);
+    $('#defenderBest').textContent = best;
+  }
+
+  function gameOverDefender() {
+    stopDefender();
+    dInput.disabled = true;
+    const acc = defender.totalKeys > 0 ? Math.round((defender.correctChars / defender.totalKeys) * 100) : 100;
+    const prevBest = parseInt(localStorage.getItem('tr.defender.best') || '0', 10);
+    const isBest = defender.score > prevBest;
+    if (isBest) localStorage.setItem('tr.defender.best', String(defender.score));
+    $('#goScore').textContent = defender.score;
+    $('#goLevel').textContent = defender.level;
+    $('#goWords').textContent = defender.wordsCleared;
+    $('#goAcc').textContent = acc + '%';
+    $('#goNewBest').classList.toggle('hidden', !isBest);
+    $('#defenderGameOver').classList.remove('hidden');
+    updateDefenderHUD();
+  }
+
+  // Input handling: matches against the closest word starting with the typed prefix.
+  // Once a word is targeted, finishing it fires a bullet and clears the input.
+  dInput.addEventListener('input', (e) => {
+    if (!defender.running) return;
+    const value = dInput.value;
+
+    if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') {
+      defender.totalKeys += 1;
+    }
+
+    if (!value) {
+      clearTargets();
+      return;
+    }
+
+    // Pick the lowest-y (closest to ship) word that starts with the typed value.
+    const candidates = defender.words
+      .filter((w) => !w.exploding && w.word.toLowerCase().startsWith(value.toLowerCase()))
+      .sort((a, b) => b.y - a.y);
+
+    if (candidates.length === 0) {
+      // Mistake - shake input briefly
+      dInput.classList.add('shake');
+      setTimeout(() => dInput.classList.remove('shake'), 180);
+      // Reset typed visualization on previous target if any
+      clearTargets();
+      // Soft penalty: clear value
+      dInput.value = '';
+      return;
+    }
+
+    const target = candidates[0];
+    // Update visualization
+    defender.words.forEach((w) => {
+      if (w === target) {
+        w.typed = value;
+        w.el.classList.add('targeted');
+        const typedSpan = w.el.querySelector('.typed');
+        const restSpan = w.el.querySelector('.rest');
+        typedSpan.textContent = w.word.slice(0, value.length);
+        restSpan.textContent = w.word.slice(value.length);
+      } else if (w.el.classList.contains('targeted')) {
+        w.el.classList.remove('targeted');
+        w.typed = '';
+        w.el.querySelector('.typed').textContent = '';
+        w.el.querySelector('.rest').textContent = w.word;
+      }
+    });
+    defender.targetedId = target.id;
+
+    // Word complete? fire bullet
+    if (value.toLowerCase() === target.word.toLowerCase()) {
+      fireBullet(target);
+      dInput.value = '';
+      defender.targetedId = null;
+    }
+  });
+
+  function clearTargets() {
+    defender.words.forEach((w) => {
+      if (w.el.classList.contains('targeted')) {
+        w.el.classList.remove('targeted');
+        w.typed = '';
+        const typedSpan = w.el.querySelector('.typed');
+        const restSpan = w.el.querySelector('.rest');
+        if (typedSpan) typedSpan.textContent = '';
+        if (restSpan) restSpan.textContent = w.word;
+      }
+    });
+    defender.targetedId = null;
+  }
+
+  $('#defenderBtn').addEventListener('click', () => {
+    showScreen('defender');
+    $('#defenderStart').classList.remove('hidden');
+    $('#defenderGameOver').classList.add('hidden');
+    updateDefenderHUD();
+  });
+  $('#defenderStartBtn').addEventListener('click', startDefender);
+  $('#defenderRestartBtn').addEventListener('click', startDefender);
+  $('#defenderLeaveBtn').addEventListener('click', () => {
+    stopDefender();
+    showScreen('home');
+  });
+
+  $('#defender').addEventListener('click', (e) => {
+    if (!defender.running) return;
+    if (e.target.closest('button, select, label')) return;
+    dInput.focus();
+  });
+
   showScreen('home');
 })();
