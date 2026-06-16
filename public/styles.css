@@ -29,7 +29,9 @@ html, body {
     radial-gradient(1000px 500px at 110% 110%, rgba(0, 210, 255, 0.18), transparent 60%),
     linear-gradient(180deg, var(--bg-0), var(--bg-1));
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 #app {
@@ -120,6 +122,7 @@ button {
   padding: 12px 16px;
   border: 1px solid transparent;
   transition: transform 80ms, background 120ms, box-shadow 120ms;
+  min-height: 44px;
 }
 button:active { transform: translateY(1px); }
 button.primary {
@@ -149,6 +152,13 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   gap: 12px;
   margin-bottom: 16px;
   flex-wrap: wrap;
+}
+.bar > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
 }
 .code-pill {
   display: inline-block;
@@ -237,7 +247,11 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 .racer .name {
   position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
-  font-size: 11px; color: var(--muted); white-space: nowrap;
+  font-size: 11px; color: var(--muted);
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .racer.me .name { color: var(--accent-2); font-weight: 700; }
 .racer.finished { animation: pulse 800ms ease infinite alternate; }
@@ -335,7 +349,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 40;
 }
-.count-num { font-size: 140px; font-weight: 800; line-height: 1; }
+.count-num { font-size: clamp(72px, 18vw, 140px); font-weight: 800; line-height: 1; }
 .count-label { color: var(--muted); margin-top: 8px; letter-spacing: 4px; text-transform: uppercase; }
 
 /* Emoji popups */
@@ -389,13 +403,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .result-row.bronze .place { background: rgba(209, 138, 90, 0.2); color: var(--bronze); }
 .result-row .av { font-size: 24px; }
 .result-row .meta { color: var(--muted); font-size: 13px; }
-.results-actions { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
-
-@media (max-width: 720px) {
-  .row { grid-template-columns: 1fr; }
-  .divider { padding: 4px 0; }
-  .avatar-grid { grid-template-columns: repeat(6, 1fr); }
-}
+.results-actions { display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
 
 /* Practice mode */
 .practice-cta { margin-top: 14px; }
@@ -470,7 +478,7 @@ button.full { width: 100%; }
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 16px;
   padding: 22px 24px;
-  min-width: 320px;
+  width: min(420px, calc(100vw - 32px));
   text-align: center;
   box-shadow: var(--shadow);
 }
@@ -496,10 +504,6 @@ button.full { width: 100%; }
   letter-spacing: 1px;
 }
 
-@media (max-width: 640px) {
-  .best-row { grid-template-columns: 1fr; }
-  .practice-result-grid { grid-template-columns: repeat(2, 1fr); }
-}
 
 /* ====== Space Defender ====== */
 .defender-stats {
@@ -511,7 +515,7 @@ button.full { width: 100%; }
 .defender-arena {
   position: relative;
   width: 100%;
-  height: 560px;
+  height: clamp(420px, 65vh, 620px);
   border-radius: 16px;
   overflow: hidden;
   background:
@@ -612,7 +616,7 @@ button.full { width: 100%; }
 .def-word {
   position: absolute;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 18px;
+  font-size: clamp(14px, 2.5vw, 18px);
   padding: 6px 10px;
   border-radius: 8px;
   background: rgba(15, 20, 40, 0.7);
@@ -622,6 +626,7 @@ button.full { width: 100%; }
   letter-spacing: 0.5px;
   transform: translateX(-50%);
   z-index: 3;
+  max-width: 90%;
 }
 .def-word.targeted { border-color: var(--accent); box-shadow: 0 0 14px rgba(124, 92, 255, 0.55); }
 .def-word .typed { color: var(--good); }
@@ -665,7 +670,7 @@ button.full { width: 100%; }
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin: 10px 0 6px;
-  min-width: 320px;
+  width: min(420px, calc(100vw - 64px));
 }
 .gameover-stats strong { font-size: 22px; display: block; margin-top: 2px; }
 .gameover-actions {
@@ -674,11 +679,6 @@ button.full { width: 100%; }
   justify-content: center;
   margin-top: 12px;
   flex-wrap: wrap;
-}
-
-@media (max-width: 640px) {
-  .gameover-stats { grid-template-columns: repeat(2, 1fr); }
-  .defender-arena { height: 480px; }
 }
 
 .defender-arena.hit { animation: arenaShake 240ms ease; }
@@ -704,4 +704,150 @@ button.full { width: 100%; }
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
+}
+
+/* ==============================
+   Responsive breakpoints
+   - 768px: tablets / large phones landscape
+   - 560px: small tablets / phones landscape
+   - 380px: small phones portrait
+   ============================== */
+
+@media (max-width: 768px) {
+  #app { padding: 18px 14px 60px; }
+
+  /* Forms: stack the create/join row */
+  .row { grid-template-columns: 1fr; }
+  .divider { padding: 4px 0; }
+
+  /* Avatars: more rows, fewer columns */
+  .avatar-grid { grid-template-columns: repeat(6, 1fr); }
+
+  /* Top bar: allow stacking when needed */
+  .bar { gap: 8px; }
+  .bar > div { gap: 8px; }
+  .race-stats { gap: 10px; }
+  .stat span:last-child { font-size: 16px; }
+
+  /* Race text smaller, lane shorter */
+  .text-box { font-size: 16px; padding: 14px 16px; min-height: 90px; }
+  .typing-input { font-size: 15px; padding: 12px; }
+  .lane { height: 38px; }
+  .racer { font-size: 22px; }
+  .racer .name { max-width: 130px; font-size: 10px; }
+
+  /* Player rows tighter */
+  .player-row {
+    grid-template-columns: 36px 1fr auto;
+    padding: 10px 12px;
+  }
+  .player-row .av { font-size: 20px; }
+
+  /* Results */
+  .result-row { grid-template-columns: 40px 32px 1fr auto; padding: 10px 12px; }
+  .result-row .av { font-size: 20px; }
+
+  /* Practice bests on tablets shrink to 2 columns */
+  .best-row { grid-template-columns: repeat(2, 1fr); }
+  .practice-result-grid { grid-template-columns: repeat(2, 1fr); }
+  .gameover-stats { grid-template-columns: repeat(2, 1fr); }
+
+  /* Defender HUD: tighter on small screens */
+  .defender-stats { gap: 8px; }
+  .defender-stats .stat span:last-child { font-size: 14px; }
+  .defender-stats .stat-label { font-size: 9px; }
+}
+
+@media (max-width: 560px) {
+  /* Hero text smaller, less vertical air */
+  .hero { padding: 16px 8px 4px; }
+  .tagline { font-size: 14px; }
+  .card { padding: 18px; border-radius: 14px; }
+
+  /* Avatars: 5 columns to keep tap targets sensible */
+  .avatar-grid { grid-template-columns: repeat(5, 1fr); }
+  .avatar-grid button { padding: 10px 6px; font-size: 20px; }
+
+  /* Buttons: larger tap targets */
+  button { padding: 12px 14px; min-height: 44px; }
+  button.primary { padding: 13px 18px; }
+
+  /* Bar items: stack the right side controls */
+  .bar { flex-direction: column; align-items: flex-start; }
+  .bar > div { width: 100%; justify-content: flex-start; }
+  .bar > div:last-child { justify-content: flex-end; }
+  .race-stats { width: 100%; justify-content: space-between; }
+  .defender-stats { width: 100%; justify-content: space-between; }
+
+  /* Race text and input: phone-friendly */
+  .text-box { font-size: 15px; line-height: 1.6; padding: 12px 14px; min-height: 80px; }
+  .typing-input { font-size: 16px; padding: 12px; } /* 16px prevents iOS zoom */
+
+  /* Lobby */
+  .lobby-body h2 { font-size: 22px; }
+
+  /* Practice bests: single column on phones, more vertical, less wide */
+  .best-row { grid-template-columns: 1fr; gap: 8px; }
+  .best-card { padding: 12px 14px; }
+  .best-val { font-size: 28px; }
+
+  /* Practice result modal & game-over both single-column */
+  .practice-result-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .practice-result-card { padding: 18px 16px; }
+  .gameover-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .gameover-stats strong { font-size: 18px; }
+  .defender-overlay h2 { font-size: 22px; }
+
+  /* Practice diff segmented control: hug width */
+  .practice-controls { width: 100%; }
+  .practice-controls .seg { flex: 1; }
+  .practice-controls .seg button { flex: 1; }
+
+  /* Defender: smaller ship, smaller words */
+  .defender-ship { width: 44px; height: 88px; }
+  .defender-ship .ship-svg { height: 64px; }
+  .defender-ship .ship-flames { width: 20px; height: 28px; }
+  .def-word { font-size: 13px; padding: 5px 8px; }
+  .defender-input { font-size: 16px; }
+
+  /* Power-ups + emoji bar: stack to two rows neatly */
+  .powerup-bar { gap: 8px; }
+  .emoji-bar button { font-size: 16px; padding: 6px 8px; min-height: 36px; }
+
+  /* Toasts: don't overflow */
+  .toasts { width: calc(100% - 24px); }
+  .toast { font-size: 12px; padding: 6px 10px; }
+
+  /* Emoji popups: smaller, anchored to corner */
+  .emoji-pop { right: 12px; bottom: 12px; }
+  .emoji-pop .pop { font-size: 12px; padding: 5px 10px; }
+}
+
+@media (max-width: 380px) {
+  #app { padding: 12px 10px 50px; }
+  .hero h1 { letter-spacing: -0.01em; }
+  .avatar-grid { grid-template-columns: repeat(4, 1fr); }
+  .race-stats .stat:not(:first-child) span:last-child { font-size: 14px; }
+  .lane { height: 34px; }
+  .racer { font-size: 20px; }
+  .racer .name { max-width: 100px; font-size: 9px; }
+  .text-box { font-size: 14px; }
+  .practice-result-grid { grid-template-columns: 1fr 1fr; }
+  .gameover-stats { grid-template-columns: 1fr 1fr; }
+}
+
+/* Landscape phones: arena cap so it doesn't dominate */
+@media (max-height: 480px) and (orientation: landscape) {
+  .defender-arena { height: 70vh; }
+  .hero { padding: 12px 8px 4px; }
+  #app { padding: 12px 16px 40px; }
+}
+
+/* Honor users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

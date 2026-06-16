@@ -1012,9 +1012,14 @@
     const el = document.createElement('div');
     el.className = 'def-word';
     el.innerHTML = `<span class="typed"></span><span class="rest">${escapeHtml(word)}</span>`;
-    // Random horizontal position with some padding from edges
-    const padding = 60;
-    const x = padding + Math.random() * Math.max(0, arenaW - padding * 2);
+    // Estimate word width so longer words get pulled away from edges proportionally.
+    // Roughly ~10px per character at desktop sizes; a touch less on phones via CSS clamp.
+    const estCharW = arenaW < 480 ? 9 : 11;
+    const halfWordW = (word.length * estCharW) / 2;
+    const padding = Math.max(40, halfWordW + 12);
+    const minX = padding;
+    const maxX = Math.max(minX, arenaW - padding);
+    const x = minX + Math.random() * (maxX - minX);
     el.style.left = x + 'px';
     el.style.top = '-30px';
     dWordsLayer.appendChild(el);
