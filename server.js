@@ -4,6 +4,7 @@ const path = require('path');
 const { Server } = require('socket.io');
 const { getRandomText } = require('./texts');
 const db = require('./db');
+const { validateProgress } = require('./lib/validators');
 
 const app = express();
 app.use(express.json({ limit: '4kb' }));
@@ -343,44 +344,23 @@ io.on('connection', (socket) => {
     const p = room.players.get(socket.id);
     if (!p || p.finished) return;
 
-    // ====== Anti-cheat validation ======
-    // 1. Progress must be a finite number in [0, 1]
-    let nextProgress = Number(progress);
-    if (!Number.isFinite(nextProgress)) return;
-    nextProgress = Math.max(0, Math.min(1, nextProgress));
+    const result = validateProgress(
+      { progress, wpm, accuracy },
+      {
+        prevProgress: p.progress,
+        lastProgressAt: p._lastProgressAt || 0,
+        raceStartedAt: room.startedAt,
+        now: Date.now(),
+        textLength: (room.text || '').length,
+      },
+    );
+    if (!result.ok) return;
 
-    // 2. Progress can never decrease.
-    if (nextProgress < p.progress) return;
-
-    // 3. Cap progress per second based on world-record human speed.
-    //    250 WPM ≈ 1250 chars/min ≈ ~21 chars/sec. We allow some headroom (30 chars/sec)
-    //    so a bot claiming "I went from 10% to 100% in one second" is rejected.
-    const elapsedMs = Date.now() - room.startedAt;
-    const elapsedSec = Math.max(0.001, elapsedMs / 1000);
-    const textLen = (room.text || '').length || 1;
-    const maxCharsPossible = elapsedSec * 30; // chars in this race so far
-    const maxAllowedProgress = Math.min(1, maxCharsPossible / textLen);
-    // Allow a small slack of +0.05 for client-clock drift on the very first event
-    if (nextProgress > maxAllowedProgress + 0.05) {
-      return;
-    }
-
-    // 4. Throttle: an honest client emits at ~250ms cadence. We accept anything
-    //    above ~80ms (50% slack) and silently drop the rest.
-    const now = Date.now();
-    if (p._lastProgressAt && now - p._lastProgressAt < 80) return;
-    p._lastProgressAt = now;
-
-    // 5. Validate WPM/accuracy ranges
-    let nextWpm = Math.max(0, Math.round(Number(wpm) || 0));
-    if (nextWpm > 250) nextWpm = 250;
-    let nextAcc = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
-
-    // Accept the update.
+    p._lastProgressAt = Date.now();
     const prev = p.progress;
-    p.progress = nextProgress;
-    p.wpm = nextWpm;
-    p.accuracy = nextAcc;
+    p.progress = result.progress;
+    p.wpm = result.wpm;
+    p.accuracy = result.accuracy;
     maybeGrantPowerUp(p, prev);
 
     if (p.progress >= 1 && !p.finished) {
@@ -445,9 +425,14 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
-db.init().catch((err) => console.error('[db] init error:', err.message));
-server.listen(PORT, HOST, () => {
-  console.log(`🏁 Typing Race running at http://localhost:${PORT}`);
-  console.log(`   LAN: any device on your Wi-Fi can reach http://<your-lan-ip>:${PORT}`);
-  console.log(`   Internet: run "npm run tunnel" to get a public URL to share.`);
-});
+
+if (require.main === module) {
+  db.init().catch((err) => console.error('[db] init error:', err.message));
+  server.listen(PORT, HOST, () => {
+    console.log(`🏁 Typing Race running at http://localhost:${PORT}`);
+    console.log(`   LAN: any device on your Wi-Fi can reach http://<your-lan-ip>:${PORT}`);
+    console.log(`   Internet: run "npm run tunnel" to get a public URL to share.`);
+  });
+}
+
+module.exports = { app, server, io };

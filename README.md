@@ -28,6 +28,7 @@ A real-time multiplayer typing game with rooms, power-ups, themed sentence packs
 | Real-time | Socket.IO 4 (WebSockets) |
 | Database | PostgreSQL (managed on Render) |
 | Frontend | Vanilla HTML / CSS / JavaScript — no build step, no framework |
+| Testing | Jest + Supertest (30 tests across validators, text generation, and HTTP endpoints) |
 | Deploy | Render (web service + managed Postgres, auto-deploy from GitHub) |
 | Other | Dockerfile and `fly.toml` included for portability |
 
@@ -84,20 +85,41 @@ DATABASE_URL=postgresql://localhost/typingrace npm start
 
 The schema is created automatically on first boot.
 
+## Testing
+
+Unit + integration tests via Jest:
+
+```bash
+npm test
+```
+
+Three test suites:
+- `tests/validators.test.js` — anti-cheat rules (progress bounds, monotonicity, time cap, throttling, WPM/accuracy clamping)
+- `tests/texts.test.js` — themed text generation across difficulties
+- `tests/api.test.js` — HTTP endpoints via supertest, including the graceful-degrade path when the database isn't configured
+
+Anti-cheat logic was deliberately extracted into a pure module (`lib/validators.js`) so it can be unit tested without spinning up sockets, rooms, or timers.
+
 ## Project layout
 
 ```
 typingRace/
-├── server.js            # Express + Socket.IO server, room state machine, anti-cheat
+├── server.js            # Express + Socket.IO server, room state machine
 ├── db.js                # Optional Postgres persistence layer (graceful degrade)
 ├── texts.js             # Themed sentence pools per difficulty
+├── lib/
+│   └── validators.js    # Pure anti-cheat validation rules (testable)
+├── tests/
+│   ├── validators.test.js
+│   ├── texts.test.js
+│   └── api.test.js
 ├── public/
-│   ├── index.html       # Single-page UI (Home, Practice, Defender, Lobby, Race, Leaderboard, Results)
-│   ├── styles.css       # All styles, with phone/tablet/desktop breakpoints
-│   └── app.js           # Client logic (typing engine, state, render, sockets, defender game loop)
-├── Dockerfile           # Container image (Node 20 alpine)
-├── render.yaml          # Render Blueprint
-├── fly.toml             # Fly.io config
+│   ├── index.html       # Single-page UI
+│   ├── styles.css       # Phone/tablet/desktop responsive styles
+│   └── app.js           # Client logic (typing engine, state, render, sockets)
+├── Dockerfile
+├── render.yaml
+├── fly.toml
 └── package.json
 ```
 
@@ -119,7 +141,7 @@ This project is honest about its limits.
 | **Rate limiting** | Not implemented | Per-IP and per-socket throttles on `room:create`, `race:progress`, `race:emoji`, etc. |
 | **Authentication** | None — players pick a name | Optional account layer (Postgres + bcrypt or OAuth) for verified leaderboards |
 | **Observability** | `console.log` only | Structured logs (pino), request IDs, metrics (Prometheus), error tracking (Sentry) |
-| **Tests** | None | Unit tests on the room state machine, integration tests on the API endpoints, end-to-end with Playwright |
+| **Tests** | 30 unit + integration tests (Jest + Supertest) covering validators, text generation, and API | Add room state machine tests, Socket.IO integration tests, end-to-end with Playwright |
 
 The trade-offs above are intentional for the project's scope (play with friends, run on free hosting). Each item is a real, scoped piece of work — not a vague "TODO".
 

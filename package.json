@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "tunnel:ngrok": "ngrok http 3000",
     "tunnel:localtunnel": "npx --yes localtunnel --port 3000"
@@ -25,5 +27,15 @@
     "express": "4.19.2",
     "pg": "^8.21.0",
     "socket.io": "4.7.5"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   }
 }
