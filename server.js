@@ -91,6 +91,7 @@ function startCountdown(code) {
     p.place = null;
     p.effects = [];
     p.powerUps = [];
+    p._lastProgressAt = 0;
   }
   broadcastRoom(code);
 
@@ -267,10 +268,45 @@ io.on('connection', (socket) => {
     if (!room || room.status !== 'racing') return;
     const p = room.players.get(socket.id);
     if (!p || p.finished) return;
+
+    // ====== Anti-cheat validation ======
+    // 1. Progress must be a finite number in [0, 1]
+    let nextProgress = Number(progress);
+    if (!Number.isFinite(nextProgress)) return;
+    nextProgress = Math.max(0, Math.min(1, nextProgress));
+
+    // 2. Progress can never decrease.
+    if (nextProgress < p.progress) return;
+
+    // 3. Cap progress per second based on world-record human speed.
+    //    250 WPM ≈ 1250 chars/min ≈ ~21 chars/sec. We allow some headroom (30 chars/sec)
+    //    so a bot claiming "I went from 10% to 100% in one second" is rejected.
+    const elapsedMs = Date.now() - room.startedAt;
+    const elapsedSec = Math.max(0.001, elapsedMs / 1000);
+    const textLen = (room.text || '').length || 1;
+    const maxCharsPossible = elapsedSec * 30; // chars in this race so far
+    const maxAllowedProgress = Math.min(1, maxCharsPossible / textLen);
+    // Allow a small slack of +0.05 for client-clock drift on the very first event
+    if (nextProgress > maxAllowedProgress + 0.05) {
+      return;
+    }
+
+    // 4. Throttle: an honest client emits at ~250ms cadence. We accept anything
+    //    above ~80ms (50% slack) and silently drop the rest.
+    const now = Date.now();
+    if (p._lastProgressAt && now - p._lastProgressAt < 80) return;
+    p._lastProgressAt = now;
+
+    // 5. Validate WPM/accuracy ranges
+    let nextWpm = Math.max(0, Math.round(Number(wpm) || 0));
+    if (nextWpm > 250) nextWpm = 250;
+    let nextAcc = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
+
+    // Accept the update.
     const prev = p.progress;
-    p.progress = Math.max(0, Math.min(1, Number(progress) || 0));
-    p.wpm = Math.max(0, Math.round(Number(wpm) || 0));
-    p.accuracy = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
+    p.progress = nextProgress;
+    p.wpm = nextWpm;
+    p.accuracy = nextAcc;
     maybeGrantPowerUp(p, prev);
 
     if (p.progress >= 1 && !p.finished) {

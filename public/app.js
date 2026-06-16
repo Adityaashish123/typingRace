@@ -32,6 +32,22 @@
 
   function setError(msg) { $('#homeError').textContent = msg || ''; }
 
+  // Lock a typing input against paste, drag-drop, and right-click,
+  // making the casual "select text + paste" cheat fail. Cheaters with
+  // dev tools will still bypass this, but server-side WPM validation
+  // catches that (see anti-cheat rules in server.js).
+  function lockTypingInput(el, onCheatAttempt) {
+    if (!el) return;
+    const block = (e) => {
+      e.preventDefault();
+      if (typeof onCheatAttempt === 'function') onCheatAttempt();
+    };
+    el.addEventListener('paste', block);
+    el.addEventListener('drop', block);
+    el.addEventListener('dragover', (e) => e.preventDefault());
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
   // ====== Home: avatar grid ======
   function renderAvatars() {
     const grid = $('#avatarGrid');
@@ -151,6 +167,7 @@
   // ====== Race: text rendering & typing ======
   const textBox = $('#textBox');
   const input = $('#typingInput');
+  lockTypingInput(input, () => toast('Typing only — paste is disabled.'));
 
   function startTypingFor(text) {
     state.typingState = {
@@ -573,6 +590,7 @@
 
   const pTextBox = $('#practiceTextBox');
   const pInput = $('#practiceInput');
+  lockTypingInput(pInput, () => toast('Typing only — paste is disabled.'));
 
   function loadBests() {
     ['easy', 'medium', 'hard'].forEach((d) => {
@@ -814,6 +832,7 @@
   const dWordsLayer = $('#defenderWords');
   const dBulletsLayer = $('#defenderBullets');
   const dInput = $('#defenderInput');
+  lockTypingInput(dInput, () => toast('Typing only — paste is disabled.'));
 
   // A larger word pool for the arcade mode. Short, common words to keep
   // the gameplay brisk; longer words dialed in as level grows.
